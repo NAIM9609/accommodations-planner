@@ -30,8 +30,8 @@ resource "aws_amplify_app" "frontend" {
 
   custom_rule {
     source = "/<*>"
-    status = "200"
-    target = "/index.html"
+    status = "404-200"
+    target = "/404.html"
   }
 }
 
