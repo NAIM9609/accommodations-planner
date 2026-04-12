@@ -8,8 +8,8 @@
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "3.575.0",
-    "@aws-sdk/lib-dynamodb": "3.575.0"
+    "@aws-sdk/client-dynamodb": "3.1029.0",
+    "@aws-sdk/lib-dynamodb": "3.1029.0"
   },
   "devDependencies": {
     "@types/aws-lambda": "8.10.137",
