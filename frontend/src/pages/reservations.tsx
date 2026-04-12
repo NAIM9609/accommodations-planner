@@ -3,8 +3,7 @@ import Head from 'next/head';
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import ReservationForm from '../components/ReservationForm';
-import { getReservations, deleteReservation, type Reservation, type CreateReservationInput } from '../lib/apiClient';
-import { createReservation } from '../lib/apiClient';
+import { getReservations, createReservation, deleteReservation, type Reservation, type CreateReservationInput } from '../lib/apiClient';
 
 const ReservationsPage: NextPage = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
