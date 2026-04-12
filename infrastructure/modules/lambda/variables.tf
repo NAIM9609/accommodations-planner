@@ -15,17 +15,13 @@ variable "dynamodb_table_name" {
 }
 
 variable "reserved_concurrency" {
-  description = "Reserved concurrency for Lambda functions. Set to null to not manage it."
+  description = "Reserved concurrency for Lambda functions. Use -1 for unreserved (default)."
   type        = number
-  default     = null
+  default     = -1
 
   validation {
-    condition = (
-      var.reserved_concurrency == null ||
-      var.reserved_concurrency == -1 ||
-      var.reserved_concurrency >= 0
-    )
-    error_message = "reserved_concurrency must be null, -1 (unreserved), or a non-negative number."
+    condition     = var.reserved_concurrency == -1 || var.reserved_concurrency >= 0
+    error_message = "reserved_concurrency must be -1 (unreserved) or a non-negative number."
   }
 }
 

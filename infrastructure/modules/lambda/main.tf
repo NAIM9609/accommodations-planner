@@ -47,7 +47,7 @@ resource "aws_lambda_function" "health" {
   filename                       = local.lambda_common.filename
   source_code_hash               = local.lambda_common.source_code_hash
   layers                         = [aws_lambda_layer_version.deps.arn]
-  reserved_concurrent_executions = var.reserved_concurrency == null ? null : var.reserved_concurrency
+  reserved_concurrent_executions = var.reserved_concurrency
 
   environment {
     variables = {
@@ -70,7 +70,7 @@ resource "aws_lambda_function" "reservations" {
   filename                       = local.lambda_common.filename
   source_code_hash               = local.lambda_common.source_code_hash
   layers                         = [aws_lambda_layer_version.deps.arn]
-  reserved_concurrent_executions = var.reserved_concurrency == null ? null : var.reserved_concurrency
+  reserved_concurrent_executions = var.reserved_concurrency
 
   environment {
     variables = {

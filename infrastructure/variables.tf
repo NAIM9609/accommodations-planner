@@ -56,16 +56,12 @@ variable "amplify_custom_domain_prefix" {
 }
 
 variable "lambda_reserved_concurrency" {
-  description = "Reserved concurrency per Lambda function. Set to null to not manage it."
+  description = "Reserved concurrency per Lambda function. Use -1 for unreserved (default)."
   type        = number
-  default     = null
+  default     = -1
   validation {
-    condition = (
-      var.lambda_reserved_concurrency == null ||
-      var.lambda_reserved_concurrency == -1 ||
-      var.lambda_reserved_concurrency >= 0
-    )
-    error_message = "lambda_reserved_concurrency must be null, -1 (unreserved), or a non-negative number."
+    condition     = var.lambda_reserved_concurrency == -1 || var.lambda_reserved_concurrency >= 0
+    error_message = "lambda_reserved_concurrency must be -1 (unreserved) or a non-negative number."
   }
 }
 
