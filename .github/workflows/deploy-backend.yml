@@ -12,13 +12,14 @@ on:
         required: true
         type: string
     secrets:
-      AWS_ROLE_ARN:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
         required: true
       DEPLOY_AWS_REGION:
         required: true
 
 permissions:
-  id-token: write
   contents: read
 
 jobs:
@@ -29,10 +30,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC)
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.DEPLOY_AWS_REGION }}
 
       - uses: actions/setup-node@v4

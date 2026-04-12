@@ -248,14 +248,10 @@ This creates `aws_iam_openid_connect_provider.github` and `aws_iam_role.github_a
 ### 3. Configure GitHub secrets
 
 ```bash
-# Get the IAM role ARN from Terraform output
-ROLE_ARN=$(terraform output -raw github_actions_role_arn)
-
-# Set GitHub secrets (per environment) — required, no fallback
-gh secret set AWS_ROLE_ARN --env dev --body "$ROLE_ARN"
-gh secret set AWS_ROLE_ARN --env prod --body "$ROLE_ARN"
-gh secret set AMPLIFY_GITHUB_TOKEN --env dev --body "<your-token>"
-gh secret set AMPLIFY_GITHUB_TOKEN --env prod --body "<your-token>"
+# Set GitHub Actions secrets (repository-level) — required, no fallback
+gh secret set AWS_ACCESS_KEY_ID --body "<AWS_ACCESS_KEY_ID>"
+gh secret set AWS_SECRET_ACCESS_KEY --body "<AWS_SECRET_ACCESS_KEY>"
+gh secret set AMPLIFY_GITHUB_TOKEN --body "<your-token>"
 
 # Set deploy region secret (repo-level) — required, no fallback
 gh secret set DEPLOY_AWS_REGION --body "us-east-1"

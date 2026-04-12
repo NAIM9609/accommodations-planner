@@ -15,16 +15,17 @@ Create it in:
 ## 2. Required GitHub Secrets (Environment: dev)
 
 Set these under:
-- GitHub repository -> `Settings` -> `Environments` -> `dev` -> `Environment secrets`
+- GitHub repository -> `Settings` -> `Secrets and variables` -> `Actions` -> `Secrets`
 
 | Secret name | Required | Value to fill |
 |---|---|---|
-| `AWS_ROLE_ARN` | Yes | `arn:aws:iam::<AWS_ACCOUNT_ID>:role/<DEV_GITHUB_ACTIONS_ROLE_NAME>` |
+| `AWS_ACCESS_KEY_ID` | Yes | `<AWS_ACCESS_KEY_ID>` |
+| `AWS_SECRET_ACCESS_KEY` | Yes | `<AWS_SECRET_ACCESS_KEY>` |
 | `AMPLIFY_GITHUB_TOKEN` | Yes | `<GITHUB_PAT_FOR_AMPLIFY>` |
 | `DEPLOY_AWS_REGION` | Yes | `us-east-1` (or your target region) |
 
 Notes:
-- `AWS_ROLE_ARN` is used by GitHub Actions OIDC auth for Terraform and backend deploy.
+- `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are used by GitHub Actions to authenticate to AWS.
 - `AMPLIFY_GITHUB_TOKEN` is passed to Terraform and used by Amplify GitHub integration.
 
 ## 3. Required GitHub Variable (Environment: dev)
@@ -34,32 +35,27 @@ No additional GitHub variable is required.
 ## 4. Required AWS Prerequisites
 
 Before first dev deploy, ensure:
-- GitHub OIDC provider exists in AWS account.
-- IAM role in `AWS_ROLE_ARN` trusts GitHub Actions for this repository/workflows.
-- IAM role has permissions for Terraform-managed resources (Lambda, API Gateway, DynamoDB, Amplify, IAM pass role, logs, S3 state access).
+- The IAM user/credentials behind `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` exist.
+- The IAM user has permissions for Terraform-managed resources (Lambda, API Gateway, DynamoDB, Amplify, IAM pass role, logs, S3 state access).
 
 ## 5. How To Obtain Each Value Quickly
 
 Use this section to fetch every required value in a few minutes.
 
-### A. Get `AWS_ROLE_ARN`
+### A. Get `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
 
-Option 1 (recommended): from Terraform output (inside `infrastructure`)
-
-```bash
-cd infrastructure
-terraform output -raw github_actions_role_arn
-```
-
-If output exists, copy it directly into GitHub secret `AWS_ROLE_ARN` for environment `dev`.
-
-Option 2: find role in AWS CLI by name pattern
+Option 1 (recommended): create a dedicated CI user credentials in IAM.
 
 ```bash
-aws iam list-roles --query "Roles[?contains(RoleName, 'github-actions')].Arn" --output text
+aws iam create-user --user-name accommodations-planner-ci
+aws iam create-access-key --user-name accommodations-planner-ci
 ```
 
-Then pick the development role ARN (for example one containing `accommodations-planner-dev`).
+Copy and store both values in GitHub secrets:
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+
+Option 2: reuse existing IAM user credentials that already have required permissions.
 
 ### B. Get `AMPLIFY_GITHUB_TOKEN`
 
@@ -103,7 +99,8 @@ Set that value into GitHub Actions secret `DEPLOY_AWS_REGION`.
 
 Checklist:
 
-- `AWS_ROLE_ARN` starts with `arn:aws:iam::` and contains a role name.
+- `AWS_ACCESS_KEY_ID` is present and active.
+- `AWS_SECRET_ACCESS_KEY` is present and matches the access key.
 - `AMPLIFY_GITHUB_TOKEN` is non-empty and not expired/revoked.
 - `DEPLOY_AWS_REGION` matches deployed resources and Terraform target region.
 
@@ -113,7 +110,8 @@ Copy this section and replace placeholders:
 
 ```text
 Environment: dev
-AWS_ROLE_ARN=arn:aws:iam::<AWS_ACCOUNT_ID>:role/<DEV_GITHUB_ACTIONS_ROLE_NAME>
+AWS_ACCESS_KEY_ID=<AWS_ACCESS_KEY_ID>
+AWS_SECRET_ACCESS_KEY=<AWS_SECRET_ACCESS_KEY>
 AMPLIFY_GITHUB_TOKEN=<GITHUB_PAT_FOR_AMPLIFY>
 DEPLOY_AWS_REGION=us-east-1
 ```
@@ -123,8 +121,9 @@ DEPLOY_AWS_REGION=us-east-1
 Use GitHub CLI to set values quickly:
 
 ```bash
-gh secret set AWS_ROLE_ARN --env dev --body "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<DEV_GITHUB_ACTIONS_ROLE_NAME>"
-gh secret set AMPLIFY_GITHUB_TOKEN --env dev --body "<GITHUB_PAT_FOR_AMPLIFY>"
+gh secret set AWS_ACCESS_KEY_ID --body "<AWS_ACCESS_KEY_ID>"
+gh secret set AWS_SECRET_ACCESS_KEY --body "<AWS_SECRET_ACCESS_KEY>"
+gh secret set AMPLIFY_GITHUB_TOKEN --body "<GITHUB_PAT_FOR_AMPLIFY>"
 gh secret set DEPLOY_AWS_REGION --body "us-east-1"
 ```
 
@@ -143,8 +142,9 @@ What this means:
 ## 9. Final Pre-Deploy Checks
 
 - [ ] `dev` environment exists in GitHub.
-- [ ] `AWS_ROLE_ARN` set in `dev` environment secrets.
-- [ ] `AMPLIFY_GITHUB_TOKEN` set in `dev` environment secrets.
+- [ ] `AWS_ACCESS_KEY_ID` set in Actions secrets.
+- [ ] `AWS_SECRET_ACCESS_KEY` set in Actions secrets.
+- [ ] `AMPLIFY_GITHUB_TOKEN` set in Actions secrets.
 - [ ] `DEPLOY_AWS_REGION` set as a GitHub Actions secret.
 - [ ] Dev deploy workflow is enabled and branch is `master`.
 - [ ] Push a small commit to `master` and confirm Actions + Amplify build start.
