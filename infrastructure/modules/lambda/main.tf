@@ -85,10 +85,10 @@ resource "aws_lambda_function" "reservations" {
 }
 
 resource "aws_cloudwatch_log_group" "lambda" {
-  for_each = toset([
-    aws_lambda_function.health.function_name,
-    aws_lambda_function.reservations.function_name,
-  ])
+  for_each = {
+    health       = "${var.prefix}-health"
+    reservations = "${var.prefix}-reservations"
+  }
   name              = "/aws/lambda/${each.value}"
   retention_in_days = local.log_retention_days
 }
