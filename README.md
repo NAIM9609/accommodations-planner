@@ -1,7 +1,7 @@
 # 🏡 Accommodations Planner — Maple Grove B&B
 
 A production-ready monorepo for a Bed & Breakfast accommodations planner built with:
-- **Frontend**: Next.js 14 (TypeScript, hosted on AWS Amplify)
+- **Frontend**: Next.js 15 (TypeScript, hosted on AWS Amplify)
 - **Backend**: AWS Lambda (Node.js 20, TypeScript) + API Gateway REST API
 - **Database**: DynamoDB (on-demand billing)
 - **IaC**: Terraform 1.7+ (modular)
