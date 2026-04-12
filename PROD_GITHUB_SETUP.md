@@ -21,6 +21,7 @@ Set these under:
 |---|---|---|
 | `AWS_ROLE_ARN` | Yes | `arn:aws:iam::<AWS_ACCOUNT_ID>:role/<PROD_GITHUB_ACTIONS_ROLE_NAME>` |
 | `AMPLIFY_GITHUB_TOKEN` | Yes | `<GITHUB_PAT_FOR_AMPLIFY>` |
+| `DEPLOY_AWS_REGION` | Yes | `us-east-1` (or your target region) |
 
 Notes:
 - `AWS_ROLE_ARN` is used by GitHub Actions OIDC auth for Terraform and backend deploy.
@@ -28,12 +29,7 @@ Notes:
 
 ## 3. Required GitHub Variable (Environment: prod)
 
-Set this under:
-- GitHub repository -> `Settings` -> `Environments` -> `prod` -> `Environment variables`
-
-| Variable name | Required | Value to fill |
-|---|---|---|
-| `DEPLOY_AWS_REGION` | Yes | `us-east-1` (or your target region) |
+No additional GitHub variable is required.
 
 ## 4. Required AWS Prerequisites
 
@@ -101,7 +97,7 @@ Or confirm from current AWS CLI profile:
 aws configure get region
 ```
 
-Set that value into GitHub environment variable `DEPLOY_AWS_REGION` for `prod`.
+Set that value into GitHub Actions secret `DEPLOY_AWS_REGION`.
 
 ### D. Verify Values Before Saving
 
@@ -129,7 +125,7 @@ Use GitHub CLI to set values quickly:
 ```bash
 gh secret set AWS_ROLE_ARN --env prod --body "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<PROD_GITHUB_ACTIONS_ROLE_NAME>"
 gh secret set AMPLIFY_GITHUB_TOKEN --env prod --body "<GITHUB_PAT_FOR_AMPLIFY>"
-gh variable set DEPLOY_AWS_REGION --env prod --body "us-east-1"
+gh secret set DEPLOY_AWS_REGION --body "us-east-1"
 ```
 
 ## 8. How Frontend Deployment Works
@@ -147,7 +143,7 @@ What this means:
 - [ ] `prod` environment exists in GitHub.
 - [ ] `AWS_ROLE_ARN` set in `prod` environment secrets.
 - [ ] `AMPLIFY_GITHUB_TOKEN` set in `prod` environment secrets.
-- [ ] `DEPLOY_AWS_REGION` set in `prod` environment variables.
+- [ ] `DEPLOY_AWS_REGION` set as a GitHub Actions secret.
 - [ ] Branch used for production is `master` (or update Terraform/workflows if different).
 - [ ] Run workflow: `Deploy Prod` and confirm with `deploy-prod`.
 

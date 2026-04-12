@@ -28,20 +28,40 @@ jobs:
           echo "Production deploys are allowed only from master. Current ref: ${{ github.ref }}"
           exit 1
 
+  validate-deploy-secrets-prod:
+    name: Validate Deploy Secrets (Prod)
+    needs: [validate-input]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure required secrets are present
+        run: |
+          if [ -z "${{ secrets.AWS_ROLE_ARN }}" ]; then
+            echo "Missing required secret: AWS_ROLE_ARN"
+            exit 1
+          fi
+          if [ -z "${{ secrets.AMPLIFY_GITHUB_TOKEN }}" ]; then
+            echo "Missing required secret: AMPLIFY_GITHUB_TOKEN"
+            exit 1
+          fi
+          if [ -z "${{ secrets.DEPLOY_AWS_REGION }}" ]; then
+            echo "Missing required secret: DEPLOY_AWS_REGION"
+            exit 1
+          fi
+
   deploy-backend-prod:
     name: Deploy Backend to Prod
-    needs: [validate-input, deploy-infra-prod]
+    needs: [validate-input, validate-deploy-secrets-prod, deploy-infra-prod]
     uses: ./.github/workflows/deploy-backend.yml
     with:
       environment: prod
       prefix: accommodations-planner-prod
-      aws_region: ${{ vars.DEPLOY_AWS_REGION }}
     secrets:
       AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+      DEPLOY_AWS_REGION: ${{ secrets.DEPLOY_AWS_REGION }}
 
   deploy-infra-prod:
     name: Terraform Apply Prod
-    needs: [validate-input]
+    needs: [validate-input, validate-deploy-secrets-prod]
     runs-on: ubuntu-latest
     environment: prod
     defaults:
@@ -54,7 +74,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ vars.DEPLOY_AWS_REGION }}
+          aws-region: ${{ secrets.DEPLOY_AWS_REGION }}
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -62,5 +82,5 @@ jobs:
 
       - run: terraform init
       - run: terraform workspace select prod || terraform workspace new prod
-      - run: terraform plan -var-file="prod.tfvars" -var="environment=prod" -var="aws_region=${{ vars.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
-      - run: terraform apply -auto-approve -var-file="prod.tfvars" -var="environment=prod" -var="aws_region=${{ vars.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
+      - run: terraform plan -var-file="prod.tfvars" -var="environment=prod" -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
+      - run: terraform apply -auto-approve -var-file="prod.tfvars" -var="environment=prod" -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"

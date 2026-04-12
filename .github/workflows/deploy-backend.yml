@@ -11,12 +11,10 @@ on:
         description: 'Resource name prefix, e.g. accommodations-planner-dev'
         required: true
         type: string
-      aws_region:
-        description: 'AWS region'
-        required: true
-        type: string
     secrets:
       AWS_ROLE_ARN:
+        required: true
+      DEPLOY_AWS_REGION:
         required: true
 
 permissions:
@@ -35,7 +33,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ inputs.aws_region }}
+          aws-region: ${{ secrets.DEPLOY_AWS_REGION }}
 
       - uses: actions/setup-node@v4
         with:

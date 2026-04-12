@@ -9,18 +9,39 @@ permissions:
   contents: read
 
 jobs:
+  validate-deploy-secrets-dev:
+    name: Validate Deploy Secrets (Dev)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure required secrets are present
+        run: |
+          if [ -z "${{ secrets.AWS_ROLE_ARN }}" ]; then
+            echo "Missing required secret: AWS_ROLE_ARN"
+            exit 1
+          fi
+          if [ -z "${{ secrets.AMPLIFY_GITHUB_TOKEN }}" ]; then
+            echo "Missing required secret: AMPLIFY_GITHUB_TOKEN"
+            exit 1
+          fi
+          if [ -z "${{ secrets.DEPLOY_AWS_REGION }}" ]; then
+            echo "Missing required secret: DEPLOY_AWS_REGION"
+            exit 1
+          fi
+
   deploy-backend-dev:
     name: Deploy Backend to Dev
+    needs: [validate-deploy-secrets-dev]
     uses: ./.github/workflows/deploy-backend.yml
     with:
       environment: dev
       prefix: accommodations-planner-dev
-      aws_region: ${{ vars.DEPLOY_AWS_REGION }}
     secrets:
       AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+      DEPLOY_AWS_REGION: ${{ secrets.DEPLOY_AWS_REGION }}
 
   deploy-infra-dev:
     name: Terraform Plan/Apply Dev
+    needs: [validate-deploy-secrets-dev]
     runs-on: ubuntu-latest
     environment: dev
     defaults:
@@ -33,7 +54,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ vars.DEPLOY_AWS_REGION }}
+          aws-region: ${{ secrets.DEPLOY_AWS_REGION }}
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -41,6 +62,6 @@ jobs:
 
       - run: terraform init
       - run: terraform workspace select dev || terraform workspace new dev
-      - run: terraform plan -var="environment=dev" -var="aws_region=${{ vars.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
-      - run: terraform apply -auto-approve -var="environment=dev" -var="aws_region=${{ vars.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
+      - run: terraform plan -var="environment=dev" -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
+      - run: terraform apply -auto-approve -var="environment=dev" -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
 
