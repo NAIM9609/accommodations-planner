@@ -1,0 +1,73 @@
+name: Deploy Dev
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-backend-dev:
+    name: Deploy Backend to Dev
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Build backend
+        working-directory: backend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Package and deploy Lambda
+        working-directory: backend
+        run: |
+          cd dist
+          zip -r ../lambda.zip .
+          cd ..
+          aws lambda update-function-code \
+            --function-name accommodations-planner-dev-health \
+            --zip-file fileb://lambda.zip
+          aws lambda update-function-code \
+            --function-name accommodations-planner-dev-reservations \
+            --zip-file fileb://lambda.zip
+
+  deploy-infra-dev:
+    name: Terraform Plan/Apply Dev
+    runs-on: ubuntu-latest
+    environment: dev
+    defaults:
+      run:
+        working-directory: infrastructure
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.7.5'
+
+      - run: terraform init
+      - run: terraform workspace select dev || terraform workspace new dev
+      - run: terraform plan -var="environment=dev" -var="aws_region=${{ vars.AWS_REGION || 'us-east-1' }}"
+      - run: terraform apply -auto-approve -var="environment=dev" -var="aws_region=${{ vars.AWS_REGION || 'us-east-1' }}"

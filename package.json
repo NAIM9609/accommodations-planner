@@ -1,0 +1,9 @@
+{
+  "name": "accommodations-planner",
+  "private": true,
+  "workspaces": ["frontend", "backend"],
+  "scripts": {
+    "frontend": "pnpm --filter frontend dev",
+    "backend:test": "pnpm --filter backend test"
+  }
+}
