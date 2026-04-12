@@ -74,3 +74,13 @@ jobs:
       - run: terraform plan -var="environment=dev" -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
       - run: terraform apply -auto-approve -var="environment=dev" -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
 
+      - name: Trigger Amplify build
+        run: |
+          APP_ID=$(terraform output -raw amplify_app_id 2>/dev/null || true)
+          if [ -z "$APP_ID" ]; then
+            echo "Could not read amplify_app_id from Terraform output; skipping Amplify build trigger."
+            exit 0
+          fi
+          echo "Starting Amplify build for app $APP_ID on branch master..."
+          aws amplify start-job --app-id "$APP_ID" --branch-name master --job-type RELEASE
+

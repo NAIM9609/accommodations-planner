@@ -8,6 +8,11 @@ output "frontend_url" {
   value       = module.amplify.app_url
 }
 
+output "amplify_app_id" {
+  description = "Amplify app ID for triggering builds"
+  value       = module.amplify.app_id
+}
+
 output "frontend_custom_domain_url" {
   description = "Amplify custom domain URL when enabled"
   value       = module.amplify.custom_domain_url
