@@ -33,7 +33,7 @@ Set this under:
 
 | Variable name | Required | Value to fill |
 |---|---|---|
-| `AWS_REGION` | Yes | `us-east-1` (or your target region) |
+| `DEPLOY_AWS_REGION` | Yes | `us-east-1` (or your target region) |
 
 ## 4. Required AWS Prerequisites
 
@@ -84,7 +84,7 @@ curl -H "Authorization: Bearer <GITHUB_PAT_FOR_AMPLIFY>" https://api.github.com/
 
 If valid, response includes your GitHub login JSON.
 
-### C. Get `AWS_REGION`
+### C. Get `DEPLOY_AWS_REGION`
 
 Use the region where your stack is deployed (default in this repo is `us-east-1`).
 
@@ -101,7 +101,7 @@ Or confirm from current AWS CLI profile:
 aws configure get region
 ```
 
-Set that value into GitHub environment variable `AWS_REGION` for `dev`.
+Set that value into GitHub environment variable `DEPLOY_AWS_REGION` for `dev`.
 
 ### D. Verify Values Before Saving
 
@@ -109,7 +109,7 @@ Checklist:
 
 - `AWS_ROLE_ARN` starts with `arn:aws:iam::` and contains a role name.
 - `AMPLIFY_GITHUB_TOKEN` is non-empty and not expired/revoked.
-- `AWS_REGION` matches deployed resources and Terraform target region.
+- `DEPLOY_AWS_REGION` matches deployed resources and Terraform target region.
 
 ## 6. Fill-This-Now Template
 
@@ -119,7 +119,7 @@ Copy this section and replace placeholders:
 Environment: dev
 AWS_ROLE_ARN=arn:aws:iam::<AWS_ACCOUNT_ID>:role/<DEV_GITHUB_ACTIONS_ROLE_NAME>
 AMPLIFY_GITHUB_TOKEN=<GITHUB_PAT_FOR_AMPLIFY>
-AWS_REGION=us-east-1
+DEPLOY_AWS_REGION=us-east-1
 ```
 
 ## 7. CLI Commands (Optional)
@@ -129,7 +129,7 @@ Use GitHub CLI to set values quickly:
 ```bash
 gh secret set AWS_ROLE_ARN --env dev --body "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<DEV_GITHUB_ACTIONS_ROLE_NAME>"
 gh secret set AMPLIFY_GITHUB_TOKEN --env dev --body "<GITHUB_PAT_FOR_AMPLIFY>"
-gh variable set AWS_REGION --env dev --body "us-east-1"
+gh variable set DEPLOY_AWS_REGION --env dev --body "us-east-1"
 ```
 
 ## 8. How Dev Deployment Works
@@ -149,6 +149,6 @@ What this means:
 - [ ] `dev` environment exists in GitHub.
 - [ ] `AWS_ROLE_ARN` set in `dev` environment secrets.
 - [ ] `AMPLIFY_GITHUB_TOKEN` set in `dev` environment secrets.
-- [ ] `AWS_REGION` set in `dev` environment variables.
+- [ ] `DEPLOY_AWS_REGION` set in `dev` environment variables.
 - [ ] Dev deploy workflow is enabled and branch is `master`.
 - [ ] Push a small commit to `master` and confirm Actions + Amplify build start.

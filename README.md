@@ -258,8 +258,8 @@ gh secret set AMPLIFY_GITHUB_TOKEN --env dev --body "<your-token>"
 gh secret set AMPLIFY_GITHUB_TOKEN --env prod --body "<your-token>"
 
 # Set region variable — required, no fallback
-gh variable set AWS_REGION --env dev --body "us-east-1"
-gh variable set AWS_REGION --env prod --body "us-east-1"
+gh variable set DEPLOY_AWS_REGION --env dev --body "us-east-1"
+gh variable set DEPLOY_AWS_REGION --env prod --body "us-east-1"
 ```
 
 ### 4. Create GitHub Environments
