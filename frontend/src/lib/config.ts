@@ -4,8 +4,9 @@
  */
 
 export const getApiBaseUrl = (): string => {
-  // Always use relative API routes (routed to backend via server-side proxies)
-  return '/api';
+  // In production, call the API Gateway directly via NEXT_PUBLIC_API_BASE_URL.
+  // In local development, fall back to the Next.js dev-server API proxy.
+  return process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
 };
 
 export const apiConfig = {

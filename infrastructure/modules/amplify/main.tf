@@ -15,7 +15,7 @@ resource "aws_amplify_app" "frontend" {
           commands:
             - npm run build
       artifacts:
-        baseDirectory: frontend/.next
+        baseDirectory: frontend/out
         files:
           - '**/*'
       cache:
@@ -26,13 +26,11 @@ resource "aws_amplify_app" "frontend" {
   environment_variables = {
     NEXT_PUBLIC_API_BASE_URL = var.api_base_url
     NEXT_PUBLIC_STAGE        = var.environment
-    BACKEND_API_URL          = var.api_base_url
-    _LIVE_UPDATES            = jsonencode([{ name = "Next.js version", pkg = "next-version", type = "internal", version = "latest" }])
   }
 
   custom_rule {
     source = "/<*>"
-    status = "404"
+    status = "200"
     target = "/index.html"
   }
 }
@@ -46,7 +44,6 @@ resource "aws_amplify_branch" "main" {
   environment_variables = {
     NEXT_PUBLIC_API_BASE_URL = var.api_base_url
     NEXT_PUBLIC_STAGE        = var.environment
-    BACKEND_API_URL          = var.api_base_url
   }
 }
 

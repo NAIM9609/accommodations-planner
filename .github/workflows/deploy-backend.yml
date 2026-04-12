@@ -77,22 +77,47 @@ jobs:
             fi
           done
 
-      - name: Deploy Lambda function code
+      - name: Deploy Lambda function code and attach layer
         working-directory: backend
         run: |
-          cd dist && zip -r ../lambda.zip . && cd ..
-          aws lambda update-function-code \
-            --function-name ${{ inputs.prefix }}-health \
-            --zip-file fileb://lambda.zip
-          aws lambda update-function-code \
-            --function-name ${{ inputs.prefix }}-reservations \
-            --zip-file fileb://lambda.zip
+          set -euo pipefail
 
-      - name: Attach layer to Lambda functions
-        run: |
-          aws lambda update-function-configuration \
-            --function-name ${{ inputs.prefix }}-health \
-            --layers "$LAYER_ARN"
-          aws lambda update-function-configuration \
-            --function-name ${{ inputs.prefix }}-reservations \
-            --layers "$LAYER_ARN"
+          wait_for_lambda_ready () {
+            local fn="$1"
+            echo "Waiting for Lambda '$fn' to be ready..."
+            for i in {1..30}; do
+              status=$(aws lambda get-function-configuration --function-name "$fn" --query 'LastUpdateStatus' --output text)
+              state=$(aws lambda get-function-configuration --function-name "$fn" --query 'State' --output text)
+              echo "  Attempt $i: State=$state LastUpdateStatus=$status"
+              if [[ "$state" == "Active" && ( "$status" == "Successful" || "$status" == "None" ) ]]; then
+                return 0
+              fi
+              sleep 10
+            done
+            echo "Lambda '$fn' did not become ready in time."
+            return 1
+          }
+
+          cd dist && zip -r ../lambda.zip . && cd ..
+
+          for fn in "${{ inputs.prefix }}-health" "${{ inputs.prefix }}-reservations"; do
+            echo "=== Deploying $fn ==="
+
+            wait_for_lambda_ready "$fn"
+
+            echo "Updating function code..."
+            aws lambda update-function-code \
+              --function-name "$fn" \
+              --zip-file fileb://lambda.zip
+
+            wait_for_lambda_ready "$fn"
+
+            echo "Attaching layer..."
+            aws lambda update-function-configuration \
+              --function-name "$fn" \
+              --layers "$LAYER_ARN"
+
+            wait_for_lambda_ready "$fn"
+
+            echo "=== $fn deployed successfully ==="
+          done

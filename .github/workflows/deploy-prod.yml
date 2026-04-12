@@ -7,6 +7,10 @@ on:
         description: 'Type "deploy-prod" to confirm production deployment'
         required: true
 
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
