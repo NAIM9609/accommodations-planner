@@ -33,7 +33,7 @@ jobs:
 
   deploy-backend-dev:
     name: Deploy Backend to Dev
-    needs: [validate-deploy-secrets-dev]
+    needs: [validate-deploy-secrets-dev, deploy-infra-dev]
     uses: ./.github/workflows/deploy-backend.yml
     with:
       environment: dev

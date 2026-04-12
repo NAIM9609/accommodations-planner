@@ -41,8 +41,11 @@ variable "amplify_custom_domain_name" {
   type        = string
   default     = ""
   validation {
-    condition     = var.amplify_custom_domain_enabled ? length(trimspace(var.amplify_custom_domain_name)) > 0 : true
-    error_message = "amplify_custom_domain_name must be set when amplify_custom_domain_enabled is true."
+    condition = (
+      length(trimspace(var.amplify_custom_domain_name)) == 0 ||
+      can(regex("^([a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,}$", var.amplify_custom_domain_name))
+    )
+    error_message = "amplify_custom_domain_name must be empty or a valid DNS hostname (for example: app.example.com)."
   }
 }
 

@@ -65,6 +65,18 @@ jobs:
             --query LayerVersionArn --output text)
           echo "LAYER_ARN=$LAYER_ARN" >> $GITHUB_ENV
 
+      - name: Verify Lambda functions exist
+        run: |
+          set -euo pipefail
+          for fn in "${{ inputs.prefix }}-health" "${{ inputs.prefix }}-reservations"; do
+            if ! aws lambda get-function --function-name "$fn" > /dev/null 2>&1; then
+              ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+              echo "Lambda function '$fn' was not found in account $ACCOUNT_ID, region ${{ secrets.DEPLOY_AWS_REGION }}."
+              echo "Run infrastructure deployment first for this environment before updating Lambda code."
+              exit 1
+            fi
+          done
+
       - name: Deploy Lambda function code
         working-directory: backend
         run: |
@@ -80,7 +92,7 @@ jobs:
         run: |
           aws lambda update-function-configuration \
             --function-name ${{ inputs.prefix }}-health \
-            --layers ${{ env.LAYER_ARN }}
+            --layers "$LAYER_ARN"
           aws lambda update-function-configuration \
             --function-name ${{ inputs.prefix }}-reservations \
-            --layers ${{ env.LAYER_ARN }}
+            --layers "$LAYER_ARN"

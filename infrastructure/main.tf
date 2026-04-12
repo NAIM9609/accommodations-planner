@@ -10,6 +10,13 @@ locals {
 
 data "aws_caller_identity" "current" {}
 
+check "amplify_custom_domain_requires_name" {
+  assert {
+    condition     = !var.amplify_custom_domain_enabled || length(trimspace(var.amplify_custom_domain_name)) > 0
+    error_message = "Set amplify_custom_domain_name when amplify_custom_domain_enabled is true."
+  }
+}
+
 module "dynamodb" {
   source      = "./modules/dynamodb"
   table_name  = "${local.prefix}-reservations"
