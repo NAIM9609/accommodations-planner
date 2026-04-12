@@ -47,12 +47,33 @@ npm run dev                   # http://localhost:3000
 
 ### Backend (tests only — Lambda runs on AWS)
 
+Unit tests mock DynamoDB entirely, so no real AWS credentials or env vars are needed:
+
 ```bash
 cd backend
 npm install
-npm test
+npm test        # all tests run in-process with mocked DynamoDB
 npm run build   # compiles TypeScript → dist/
 ```
+
+For **manual local integration testing** against a real DynamoDB table:
+
+```bash
+# Copy the example and fill in your values
+cp backend/.env.example backend/.env.local
+
+# Load vars and invoke a handler locally via AWS SAM CLI
+#   https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/using-sam-cli-local-invoke.html
+export $(grep -v '^#' backend/.env.local | xargs)
+sam local invoke HealthFunction
+
+# Or simply run tests with real env vars set:
+AWS_REGION=us-east-1 \
+  DYNAMODB_TABLE_NAME=accommodations-planner-dev-reservations \
+  npm --prefix backend test
+```
+
+> **Never commit `backend/.env.local`** — it is already listed in `.gitignore`.
 
 ---
 
@@ -65,13 +86,15 @@ npm run build   # compiles TypeScript → dist/
 | `NEXT_PUBLIC_API_BASE_URL` | API Gateway base URL | `https://abc123.execute-api.us-east-1.amazonaws.com/dev` |
 | `NEXT_PUBLIC_STAGE` | Deployment stage | `dev` or `prod` |
 
-### Backend (Lambda environment variables — set by Terraform)
+### Backend (Lambda environment variables — set by Terraform, no defaults)
 
-| Variable | Description |
-|----------|-------------|
-| `DYNAMODB_TABLE_NAME` | DynamoDB table name |
-| `ENVIRONMENT` | `dev` or `prod` |
-| `AWS_REGION` | AWS region (auto-set by Lambda runtime) |
+| Variable | Description | Required |
+|----------|-------------|---------|
+| `DYNAMODB_TABLE_NAME` | DynamoDB table name | ✅ |
+| `ENVIRONMENT` | `dev` or `prod` | ✅ |
+| `AWS_REGION` | AWS region (auto-set by Lambda runtime) | ✅ (runtime) |
+
+> The Lambda handler will throw immediately on startup if `AWS_REGION` or `DYNAMODB_TABLE_NAME` are not set. For local testing, see `backend/.env.example`.
 
 ---
 
@@ -121,11 +144,13 @@ This creates `aws_iam_openid_connect_provider.github` and `aws_iam_role.github_a
 # Get the IAM role ARN from Terraform output
 ROLE_ARN=$(terraform output -raw github_actions_role_arn)
 
-# Set GitHub secrets (per environment)
+# Set GitHub secrets (per environment) — required, no fallback
 gh secret set AWS_ROLE_ARN --env dev --body "$ROLE_ARN"
 gh secret set AWS_ROLE_ARN --env prod --body "$ROLE_ARN"
+gh secret set AMPLIFY_GITHUB_TOKEN --env dev --body "<your-token>"
+gh secret set AMPLIFY_GITHUB_TOKEN --env prod --body "<your-token>"
 
-# Optional: set region variable
+# Set region variable — required, no fallback
 gh variable set AWS_REGION --env dev --body "us-east-1"
 gh variable set AWS_REGION --env prod --body "us-east-1"
 ```

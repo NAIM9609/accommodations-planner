@@ -13,9 +13,8 @@ on:
         type: string
       aws_region:
         description: 'AWS region'
-        required: false
+        required: true
         type: string
-        default: 'us-east-1'
     secrets:
       AWS_ROLE_ARN:
         required: true

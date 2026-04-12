@@ -1,13 +1,11 @@
 variable "aws_region" {
   description = "AWS region to deploy resources"
   type        = string
-  default     = "us-east-1"
 }
 
 variable "environment" {
   description = "Deployment environment (dev or prod)"
   type        = string
-  default     = "dev"
   validation {
     condition     = contains(["dev", "prod"], var.environment)
     error_message = "environment must be dev or prod"
@@ -27,8 +25,7 @@ variable "github_repo" {
 }
 
 variable "amplify_github_token" {
-  description = "GitHub personal access token for Amplify (stored in GitHub secrets)"
+  description = "GitHub personal access token for Amplify (stored in GitHub Actions secret AMPLIFY_GITHUB_TOKEN)"
   type        = string
   sensitive   = true
-  default     = ""
 }
