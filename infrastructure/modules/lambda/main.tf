@@ -7,7 +7,7 @@ locals {
     filename         = data.archive_file.lambda_placeholder.output_path
     source_code_hash = data.archive_file.lambda_placeholder.output_base64sha256
   }
-  log_retention_days = 5
+  log_retention_days = var.log_retention_days
 }
 
 data "archive_file" "lambda_placeholder" {
@@ -38,15 +38,16 @@ resource "aws_lambda_layer_version" "deps" {
 }
 
 resource "aws_lambda_function" "health" {
-  function_name    = "${var.prefix}-health"
-  role             = local.lambda_common.role
-  handler          = "handlers/health.handler"
-  runtime          = local.lambda_common.runtime
-  timeout          = local.lambda_common.timeout
-  memory_size      = local.lambda_common.memory_size
-  filename         = local.lambda_common.filename
-  source_code_hash = local.lambda_common.source_code_hash
-  layers           = [aws_lambda_layer_version.deps.arn]
+  function_name                  = "${var.prefix}-health"
+  role                           = local.lambda_common.role
+  handler                        = "handlers/health.handler"
+  runtime                        = local.lambda_common.runtime
+  timeout                        = local.lambda_common.timeout
+  memory_size                    = local.lambda_common.memory_size
+  filename                       = local.lambda_common.filename
+  source_code_hash               = local.lambda_common.source_code_hash
+  layers                         = [aws_lambda_layer_version.deps.arn]
+  reserved_concurrent_executions = var.reserved_concurrency
 
   environment {
     variables = {
@@ -56,15 +57,16 @@ resource "aws_lambda_function" "health" {
 }
 
 resource "aws_lambda_function" "reservations" {
-  function_name    = "${var.prefix}-reservations"
-  role             = local.lambda_common.role
-  handler          = "handlers/reservations.handler"
-  runtime          = local.lambda_common.runtime
-  timeout          = local.lambda_common.timeout
-  memory_size      = local.lambda_common.memory_size
-  filename         = local.lambda_common.filename
-  source_code_hash = local.lambda_common.source_code_hash
-  layers           = [aws_lambda_layer_version.deps.arn]
+  function_name                  = "${var.prefix}-reservations"
+  role                           = local.lambda_common.role
+  handler                        = "handlers/reservations.handler"
+  runtime                        = local.lambda_common.runtime
+  timeout                        = local.lambda_common.timeout
+  memory_size                    = local.lambda_common.memory_size
+  filename                       = local.lambda_common.filename
+  source_code_hash               = local.lambda_common.source_code_hash
+  layers                         = [aws_lambda_layer_version.deps.arn]
+  reserved_concurrent_executions = var.reserved_concurrency
 
   environment {
     variables = {
@@ -75,7 +77,7 @@ resource "aws_lambda_function" "reservations" {
 }
 
 resource "aws_cloudwatch_log_group" "lambda" {
-  for_each          = toset([
+  for_each = toset([
     aws_lambda_function.health.function_name,
     aws_lambda_function.reservations.function_name,
   ])

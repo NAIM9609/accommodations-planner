@@ -22,6 +22,12 @@ jobs:
           echo "Confirmation text did not match. Aborting."
           exit 1
 
+      - name: Enforce master branch for prod
+        if: ${{ github.ref != 'refs/heads/master' }}
+        run: |
+          echo "Production deploys are allowed only from master. Current ref: ${{ github.ref }}"
+          exit 1
+
   local-docker-smoke:
     name: Local Docker Smoke Tests
     needs: validate-input
@@ -73,7 +79,7 @@ jobs:
 
   deploy-backend-prod:
     name: Deploy Backend to Prod
-    needs: [validate-input, local-docker-smoke]
+    needs: [validate-input, local-docker-smoke, deploy-infra-prod]
     uses: ./.github/workflows/deploy-backend.yml
     with:
       environment: prod
@@ -105,5 +111,5 @@ jobs:
 
       - run: terraform init
       - run: terraform workspace select prod || terraform workspace new prod
-      - run: terraform plan -var="environment=prod" -var="aws_region=${{ vars.AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
-      - run: terraform apply -auto-approve -var="environment=prod" -var="aws_region=${{ vars.AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
+      - run: terraform plan -var-file="prod.tfvars" -var="environment=prod" -var="aws_region=${{ vars.AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
+      - run: terraform apply -auto-approve -var-file="prod.tfvars" -var="environment=prod" -var="aws_region=${{ vars.AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"

@@ -38,7 +38,7 @@ resource "aws_amplify_app" "frontend" {
 
 resource "aws_amplify_branch" "main" {
   app_id      = aws_amplify_app.frontend.id
-  branch_name = "main"
+  branch_name = var.github_branch
   framework   = "Next.js - SSG"
   stage       = var.environment == "prod" ? "PRODUCTION" : "DEVELOPMENT"
 

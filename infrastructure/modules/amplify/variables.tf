@@ -10,6 +10,10 @@ variable "github_repo" {
   type = string
 }
 
+variable "github_branch" {
+  type = string
+}
+
 variable "github_token" {
   type      = string
   sensitive = true

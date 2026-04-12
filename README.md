@@ -160,7 +160,7 @@ awslocal lambda invoke \
 
 | Variable | Description | Local default |
 |----------|-------------|---------------|
-| `BACKEND_API_URL` | Backend API endpoint (proxied via Next.js `/api` routes) | `http://localhost:14566/restapis/aplocal/dev/_user_request_` (LocalStack) |
+| `BACKEND_API_URL` | Backend API endpoint (proxied via Next.js `/api` routes) | `http://localhost:14566/restapis/aplocal/dev/_user_request_` (LocalStack REST fallback) |
 | `NEXT_PUBLIC_STAGE` | Deployment stage | `dev` |
 
 ### Backend (Lambda environment variables — set by Terraform, no defaults)

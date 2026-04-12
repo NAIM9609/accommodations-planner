@@ -1,110 +1,54 @@
 data "aws_region" "current" {}
 
-resource "aws_api_gateway_rest_api" "api" {
-  name        = "${var.prefix}-api"
-  description = "Accommodations Planner API"
-
-  endpoint_configuration {
-    types = ["REGIONAL"]
-  }
+resource "aws_apigatewayv2_api" "api" {
+  name          = "${var.prefix}-api"
+  protocol_type = "HTTP"
 }
 
-resource "aws_api_gateway_resource" "health" {
-  rest_api_id = aws_api_gateway_rest_api.api.id
-  parent_id   = aws_api_gateway_rest_api.api.root_resource_id
-  path_part   = "health"
+resource "aws_apigatewayv2_integration" "health" {
+  api_id                 = aws_apigatewayv2_api.api.id
+  integration_type       = "AWS_PROXY"
+  integration_method     = "POST"
+  payload_format_version = "1.0"
+  integration_uri        = "arn:aws:apigateway:${data.aws_region.current.name}:lambda:path/2015-03-31/functions/${var.health_lambda_arn}/invocations"
 }
 
-resource "aws_api_gateway_method" "health_get" {
-  rest_api_id   = aws_api_gateway_rest_api.api.id
-  resource_id   = aws_api_gateway_resource.health.id
-  http_method   = "GET"
-  authorization = "NONE"
+resource "aws_apigatewayv2_integration" "reservations" {
+  api_id                 = aws_apigatewayv2_api.api.id
+  integration_type       = "AWS_PROXY"
+  integration_method     = "POST"
+  payload_format_version = "1.0"
+  integration_uri        = "arn:aws:apigateway:${data.aws_region.current.name}:lambda:path/2015-03-31/functions/${var.reservations_lambda_arn}/invocations"
 }
 
-resource "aws_api_gateway_integration" "health_get" {
-  rest_api_id             = aws_api_gateway_rest_api.api.id
-  resource_id             = aws_api_gateway_resource.health.id
-  http_method             = aws_api_gateway_method.health_get.http_method
-  integration_http_method = "POST"
-  type                    = "AWS_PROXY"
-  uri                     = "arn:aws:apigateway:${data.aws_region.current.name}:lambda:path/2015-03-31/functions/${var.health_lambda_arn}/invocations"
+resource "aws_apigatewayv2_route" "health_get" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /health"
+  target    = "integrations/${aws_apigatewayv2_integration.health.id}"
 }
 
-resource "aws_api_gateway_resource" "reservations" {
-  rest_api_id = aws_api_gateway_rest_api.api.id
-  parent_id   = aws_api_gateway_rest_api.api.root_resource_id
-  path_part   = "reservations"
+resource "aws_apigatewayv2_route" "reservations_get" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /reservations"
+  target    = "integrations/${aws_apigatewayv2_integration.reservations.id}"
 }
 
-resource "aws_api_gateway_method" "reservations_get" {
-  rest_api_id   = aws_api_gateway_rest_api.api.id
-  resource_id   = aws_api_gateway_resource.reservations.id
-  http_method   = "GET"
-  authorization = "NONE"
+resource "aws_apigatewayv2_route" "reservations_post" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "POST /reservations"
+  target    = "integrations/${aws_apigatewayv2_integration.reservations.id}"
 }
 
-resource "aws_api_gateway_integration" "reservations_get" {
-  rest_api_id             = aws_api_gateway_rest_api.api.id
-  resource_id             = aws_api_gateway_resource.reservations.id
-  http_method             = aws_api_gateway_method.reservations_get.http_method
-  integration_http_method = "POST"
-  type                    = "AWS_PROXY"
-  uri                     = "arn:aws:apigateway:${data.aws_region.current.name}:lambda:path/2015-03-31/functions/${var.reservations_lambda_arn}/invocations"
+resource "aws_apigatewayv2_route" "reservation_id_get" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /reservations/{id}"
+  target    = "integrations/${aws_apigatewayv2_integration.reservations.id}"
 }
 
-resource "aws_api_gateway_method" "reservations_post" {
-  rest_api_id   = aws_api_gateway_rest_api.api.id
-  resource_id   = aws_api_gateway_resource.reservations.id
-  http_method   = "POST"
-  authorization = "NONE"
-}
-
-resource "aws_api_gateway_integration" "reservations_post" {
-  rest_api_id             = aws_api_gateway_rest_api.api.id
-  resource_id             = aws_api_gateway_resource.reservations.id
-  http_method             = aws_api_gateway_method.reservations_post.http_method
-  integration_http_method = "POST"
-  type                    = "AWS_PROXY"
-  uri                     = "arn:aws:apigateway:${data.aws_region.current.name}:lambda:path/2015-03-31/functions/${var.reservations_lambda_arn}/invocations"
-}
-
-resource "aws_api_gateway_resource" "reservation_id" {
-  rest_api_id = aws_api_gateway_rest_api.api.id
-  parent_id   = aws_api_gateway_resource.reservations.id
-  path_part   = "{id}"
-}
-
-resource "aws_api_gateway_method" "reservation_id_get" {
-  rest_api_id   = aws_api_gateway_rest_api.api.id
-  resource_id   = aws_api_gateway_resource.reservation_id.id
-  http_method   = "GET"
-  authorization = "NONE"
-}
-
-resource "aws_api_gateway_integration" "reservation_id_get" {
-  rest_api_id             = aws_api_gateway_rest_api.api.id
-  resource_id             = aws_api_gateway_resource.reservation_id.id
-  http_method             = aws_api_gateway_method.reservation_id_get.http_method
-  integration_http_method = "POST"
-  type                    = "AWS_PROXY"
-  uri                     = "arn:aws:apigateway:${data.aws_region.current.name}:lambda:path/2015-03-31/functions/${var.reservations_lambda_arn}/invocations"
-}
-
-resource "aws_api_gateway_method" "reservation_id_delete" {
-  rest_api_id   = aws_api_gateway_rest_api.api.id
-  resource_id   = aws_api_gateway_resource.reservation_id.id
-  http_method   = "DELETE"
-  authorization = "NONE"
-}
-
-resource "aws_api_gateway_integration" "reservation_id_delete" {
-  rest_api_id             = aws_api_gateway_rest_api.api.id
-  resource_id             = aws_api_gateway_resource.reservation_id.id
-  http_method             = aws_api_gateway_method.reservation_id_delete.http_method
-  integration_http_method = "POST"
-  type                    = "AWS_PROXY"
-  uri                     = "arn:aws:apigateway:${data.aws_region.current.name}:lambda:path/2015-03-31/functions/${var.reservations_lambda_arn}/invocations"
+resource "aws_apigatewayv2_route" "reservation_id_delete" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "DELETE /reservations/{id}"
+  target    = "integrations/${aws_apigatewayv2_integration.reservations.id}"
 }
 
 resource "aws_lambda_permission" "health" {
@@ -112,7 +56,7 @@ resource "aws_lambda_permission" "health" {
   action        = "lambda:InvokeFunction"
   function_name = var.health_lambda_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_api_gateway_rest_api.api.execution_arn}/*/*"
+  source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
 }
 
 resource "aws_lambda_permission" "reservations" {
@@ -120,37 +64,16 @@ resource "aws_lambda_permission" "reservations" {
   action        = "lambda:InvokeFunction"
   function_name = var.reservations_lambda_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_api_gateway_rest_api.api.execution_arn}/*/*"
+  source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
 }
+resource "aws_apigatewayv2_stage" "api" {
+  api_id      = aws_apigatewayv2_api.api.id
+  name        = var.environment
+  auto_deploy = true
 
-resource "aws_api_gateway_deployment" "api" {
-  rest_api_id = aws_api_gateway_rest_api.api.id
-
-  triggers = {
-    redeployment = sha1(jsonencode([
-      aws_api_gateway_resource.health.id,
-      aws_api_gateway_method.health_get.id,
-      aws_api_gateway_integration.health_get.id,
-      aws_api_gateway_resource.reservations.id,
-      aws_api_gateway_method.reservations_get.id,
-      aws_api_gateway_integration.reservations_get.id,
-      aws_api_gateway_method.reservations_post.id,
-      aws_api_gateway_integration.reservations_post.id,
-      aws_api_gateway_resource.reservation_id.id,
-      aws_api_gateway_method.reservation_id_get.id,
-      aws_api_gateway_integration.reservation_id_get.id,
-      aws_api_gateway_method.reservation_id_delete.id,
-      aws_api_gateway_integration.reservation_id_delete.id,
-    ]))
+  default_route_settings {
+    throttling_rate_limit    = var.throttle_rate_limit
+    throttling_burst_limit   = var.throttle_burst_limit
+    detailed_metrics_enabled = false
   }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-resource "aws_api_gateway_stage" "api" {
-  deployment_id = aws_api_gateway_deployment.api.id
-  rest_api_id   = aws_api_gateway_rest_api.api.id
-  stage_name    = var.environment
 }
