@@ -96,10 +96,41 @@ jobs:
 
       - name: Trigger Amplify build
         run: |
+          set -euo pipefail
+
           APP_ID=$(terraform output -raw amplify_app_id 2>/dev/null || true)
           if [ -z "$APP_ID" ]; then
             echo "Could not read amplify_app_id from Terraform output; skipping Amplify build trigger."
             exit 0
           fi
-          echo "Starting Amplify build for app $APP_ID on branch master..."
-          aws amplify start-job --app-id "$APP_ID" --branch-name master --job-type RELEASE
+
+          BRANCH="master"
+          echo "Checking for existing Amplify jobs for app $APP_ID / branch $BRANCH..."
+
+          timeout_seconds=600
+          interval=15
+          elapsed=0
+
+          while true; do
+            active_count=$(
+              aws amplify list-jobs --app-id "$APP_ID" --branch-name "$BRANCH" \
+                --query "jobSummaries[?status=='PENDING' || status=='RUNNING'] | length(@)" \
+                --output text
+            )
+
+            if [ "${active_count:-0}" = "0" ]; then
+              break
+            fi
+
+            if [ "$elapsed" -ge "$timeout_seconds" ]; then
+              echo "Timed out waiting for existing Amplify jobs to finish; skipping new trigger."
+              exit 0
+            fi
+
+            echo "Amplify has $active_count active job(s) on $BRANCH; waiting ${interval}s..."
+            sleep "$interval"
+            elapsed=$((elapsed + interval))
+          done
+
+          echo "Starting Amplify build for app $APP_ID on branch $BRANCH..."
+          aws amplify start-job --app-id "$APP_ID" --branch-name "$BRANCH" --job-type RELEASE
