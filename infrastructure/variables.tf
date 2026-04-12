@@ -56,12 +56,16 @@ variable "amplify_custom_domain_prefix" {
 }
 
 variable "lambda_reserved_concurrency" {
-  description = "Reserved concurrency per Lambda function to cap burst cost"
+  description = "Reserved concurrency per Lambda function. Set to null to not manage it."
   type        = number
-  default     = 2
+  default     = null
   validation {
-    condition     = var.lambda_reserved_concurrency >= 1 && var.lambda_reserved_concurrency <= 10
-    error_message = "lambda_reserved_concurrency must be between 1 and 10 for low-cost workloads."
+    condition = (
+      var.lambda_reserved_concurrency == null ||
+      var.lambda_reserved_concurrency == -1 ||
+      var.lambda_reserved_concurrency >= 0
+    )
+    error_message = "lambda_reserved_concurrency must be null, -1 (unreserved), or a non-negative number."
   }
 }
 
