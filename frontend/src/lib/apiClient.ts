@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
+import { getApiBaseUrl } from './config';
 
 export interface Reservation {
   id: string;
@@ -19,12 +19,14 @@ export interface CreateReservationInput {
 }
 
 export async function getReservations(): Promise<Reservation[]> {
+  const BASE_URL = getApiBaseUrl();
   const res = await fetch(`${BASE_URL}/reservations`);
   if (!res.ok) throw new Error('Failed to fetch reservations');
   return res.json();
 }
 
 export async function createReservation(input: CreateReservationInput): Promise<Reservation> {
+  const BASE_URL = getApiBaseUrl();
   const res = await fetch(`${BASE_URL}/reservations`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -35,6 +37,7 @@ export async function createReservation(input: CreateReservationInput): Promise<
 }
 
 export async function deleteReservation(id: string): Promise<void> {
+  const BASE_URL = getApiBaseUrl();
   const res = await fetch(`${BASE_URL}/reservations/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete reservation');
 }

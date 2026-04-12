@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "tsc",
-    "test": "jest",
+    "test": "jest --config ./jest.config.js",
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {

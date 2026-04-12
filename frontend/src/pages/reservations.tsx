@@ -1,11 +1,10 @@
-import type { NextPage } from 'next';
 import Head from 'next/head';
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import ReservationForm from '../components/ReservationForm';
 import { getReservations, createReservation, deleteReservation, type Reservation, type CreateReservationInput } from '../lib/apiClient';
 
-const ReservationsPage: NextPage = () => {
+function ReservationsPage(): JSX.Element {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -197,6 +196,6 @@ const ReservationsPage: NextPage = () => {
       </div>
     </Layout>
   );
-};
+}
 
 export default ReservationsPage;

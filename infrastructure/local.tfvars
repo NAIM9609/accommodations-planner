@@ -11,7 +11,7 @@
 #     -target=module.api_gateway
 #
 # tflocal automatically overrides all AWS provider endpoints to point at
-# LocalStack (http://localhost:4566) — no provider changes needed.
+# LocalStack (http://localhost:14566) — no provider changes needed.
 
 aws_region           = "us-east-1"
 environment          = "dev"

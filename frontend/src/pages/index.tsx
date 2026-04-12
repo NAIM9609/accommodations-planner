@@ -1,9 +1,8 @@
-import type { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
 import Layout from '../components/Layout';
 
-const Home: NextPage = () => {
+function HomePage(): JSX.Element {
   return (
     <Layout>
       <Head>
@@ -136,6 +135,6 @@ const Home: NextPage = () => {
       </section>
     </Layout>
   );
-};
+}
 
-export default Home;
+export default HomePage;

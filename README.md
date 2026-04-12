@@ -47,7 +47,7 @@ No SAM CLI. No manual `aws` commands. No real AWS account needed.
 ```bash
 docker compose up
 # Wait for: "✅ Local stack is ready!"
-# LocalStack health: http://localhost:4566/_localstack/health
+# LocalStack health: http://localhost:14566/_localstack/health
 ```
 
 The `deploy` service (see `scripts/deploy-local.sh`) runs once and:
@@ -62,7 +62,7 @@ The `deploy` service (see `scripts/deploy-local.sh`) runs once and:
 ```bash
 cd frontend
 npm install
-npm run dev   # http://localhost:3000  →  API at LocalStack (port 4566)
+npm run dev   # http://localhost:3000  →  API at LocalStack (port 14566)
 ```
 
 `frontend/.env.development` is committed with the LocalStack URL as the stable
@@ -84,9 +84,9 @@ echo "NEXT_PUBLIC_API_BASE_URL=https://abc123.execute-api.us-east-1.amazonaws.co
 
 | Service | Port | Purpose |
 |---------|------|---------|
-| DynamoDB | `localhost:4566` | Reservations table |
-| API Gateway | `localhost:4566` | REST API (routes requests to Lambda) |
-| Lambda | `localhost:4566` | Function execution |
+| DynamoDB | `localhost:14566` | Reservations table |
+| API Gateway | `localhost:14566` | REST API (routes requests to Lambda) |
+| Lambda | `localhost:14566` | Function execution |
 
 ### Terraform local testing (optional)
 
@@ -160,7 +160,7 @@ awslocal lambda invoke \
 
 | Variable | Description | Local default |
 |----------|-------------|---------------|
-| `NEXT_PUBLIC_API_BASE_URL` | API base URL | `http://localhost:4566/restapis/aplocal/dev/_user_request_` (LocalStack) |
+| `BACKEND_API_URL` | Backend API endpoint (proxied via Next.js `/api` routes) | `http://localhost:14566/restapis/aplocal/dev/_user_request_` (LocalStack) |
 | `NEXT_PUBLIC_STAGE` | Deployment stage | `dev` |
 
 ### Backend (Lambda environment variables — set by Terraform, no defaults)
@@ -173,6 +173,35 @@ awslocal lambda invoke \
 | `DYNAMODB_ENDPOINT` | Override DynamoDB endpoint (LocalStack only) | local only |
 
 > `DYNAMODB_ENDPOINT` is **never** set in production. The Lambda SDK uses the standard AWS endpoint when this var is absent.
+
+---
+
+## 🔌 API Architecture
+
+The frontend uses **Next.js API routes** to proxy requests to the backend, avoiding direct exposure of LocalStack's complex URL format (`_user_request_`).
+
+```
+Frontend Client
+    ↓
+Next.js API Routes (`/api/...`)  ← Handles all client requests
+    ↓
+Backend API Gateway  ← Proxied via BACKEND_API_URL env var
+    ↓
+Lambda Functions
+```
+
+**Benefits:**
+- **Simpler client code**: Frontend always calls `/api/health`, `/api/reservations`, etc.
+- **Easier environment management**: Only the server knows the actual backend URL
+- **Production-ready**: Same pattern works for both LocalStack (dev) and AWS (prod)
+- **No client exposure**: Backend endpoint details stay on the server
+
+**How it works:**
+1. Frontend component calls `fetch('/api/reservations')` (via `getApiBaseUrl()`)
+2. Next.js API route `/pages/api/reservations.ts` receives the request
+3. Route reads `BACKEND_API_URL` environment variable (set by deploy service)
+4. Route forwards request to actual backend (LocalStack or AWS)
+5. Response is sent back to client
 
 ---
 
@@ -257,7 +286,9 @@ Every push to `main` triggers:
 
 1. Go to **Actions → Deploy Prod → Run workflow**
 2. Type `deploy-prod` in the confirmation box
-3. Requires approval from a `prod` environment reviewer
+3. Workflow runs Docker/LocalStack smoke tests first (`/health`, create/list reservations)
+4. Terraform + backend prod deploy runs only if those local Docker smoke tests pass
+5. Requires approval from a `prod` environment reviewer
 4. Runs Terraform apply + Lambda update for `prod` environment
 
 ---

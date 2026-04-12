@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "caniuse-lite": "1.0.30001699",
     "next": "15.5.15",
     "react": "18.3.1",
     "react-dom": "18.3.1"
@@ -17,8 +18,8 @@
     "@types/node": "20.12.7",
     "@types/react": "18.3.1",
     "@types/react-dom": "18.3.1",
-    "typescript": "5.4.5",
     "eslint": "8.57.0",
-    "eslint-config-next": "15.5.15"
+    "eslint-config-next": "15.5.15",
+    "typescript": "5.4.5"
   }
 }

@@ -1,39 +1,66 @@
 #!/usr/bin/env bash
-# Runs inside the 'deploy' docker-compose service.
+# Runs inside the 'deploy' docker-compose service OR locally.
 # Builds the Lambda, then idempotently deploys every AWS resource to LocalStack.
 # Writes the final API URL to frontend/.env.local so `npm run dev` works immediately.
-set -euo pipefail
+set -eu
+set -o pipefail 2>/dev/null || true
 
-ENDPOINT="${LOCALSTACK_ENDPOINT:-http://localstack:4566}"
+ENDPOINT="${LOCALSTACK_ENDPOINT:-http://localhost:14566}"
 REGION="${AWS_DEFAULT_REGION:-us-east-1}"
 TABLE_NAME="accommodations-planner-dev-reservations"
 FUNCTION_PREFIX="accommodations-planner-dev"
 LAMBDA_ROLE_NAME="lambda-local-role"
 LAMBDA_ROLE_ARN="arn:aws:iam::000000000000:role/${LAMBDA_ROLE_NAME}"
-# Fixed API Gateway ID via LocalStack's _custom_id_ tag — keeps the URL stable
-# across restarts: http://localhost:4566/restapis/aplocal/dev/_user_request_/...
+# Fixed API Gateway ID via LocalStack's _custom_id_ tag (keeps the URL stable
+# across restarts). The frontend proxies requests through /api/... routes which
+# forward to this backend URL.
 API_CUSTOM_ID="aplocal"
 STAGE="dev"
+
+# Resolve paths - works both locally and in Docker
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)/backend"
+FRONTEND_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)/frontend"
+TEMP_DIR="${TMPDIR:-/tmp}"
+test -d "$TEMP_DIR" || TEMP_DIR=/tmp
+LAMBDA_ZIP="${TEMP_DIR}/lambda-$$.zip"
 
 aws_local() {
   aws --endpoint-url "$ENDPOINT" --region "$REGION" "$@"
 }
 
-# ── 1. Build Lambda ────────────────────────────────────────────────────────────
-echo ">>> [deploy-local] Building Lambda (TypeScript → JS)..."
-cd /app/backend
-npm ci --quiet
+# 1. Build Lambda (TypeScript to JS)
+echo ">>> [deploy-local] Building Lambda (TypeScript -> JS)..."
+cd "$BACKEND_DIR"
+if [ -f package-lock.json ]; then
+  rm -rf node_modules
+  npm ci --quiet || npm ci
+else
+  npm install --quiet || npm install
+fi
 npm run build
 
 echo ">>> [deploy-local] Packaging Lambda zip..."
-# Copy production dependencies alongside the compiled code, then zip everything.
-# The handler paths (handlers/health.js etc.) must sit at the zip root.
-cp -r node_modules dist/
-cd dist
-zip -qr /tmp/lambda.zip .
-cd /app/backend
+# Stage compiled output + production-only deps into a temp dir, then zip.
+# Avoids bundling devDependencies (jest, ts-jest, typescript...) which can
+# add hundreds of MB for no benefit.
+STAGE_DIR="${TEMP_DIR}/lambda-stage-$$"
+rm -rf "$STAGE_DIR"
+mkdir -p "$STAGE_DIR"
+# Clean leftovers from older packaging logic (dist/node_modules)
+rm -rf dist/node_modules
+# Compiled JS must sit at the zip root (handlers/health.js etc.)
+cp -r dist/. "$STAGE_DIR/"
+# Install only production dependencies into the staging directory.
+cp package.json "$STAGE_DIR/"
+cp package-lock.json "$STAGE_DIR/"
+( cd "$STAGE_DIR" && npm ci --omit=dev --quiet )
+rm -f "$STAGE_DIR/package.json" "$STAGE_DIR/package-lock.json"
+( cd "$STAGE_DIR" && zip -qr "$LAMBDA_ZIP" . )
+rm -rf "$STAGE_DIR"
+cd "$BACKEND_DIR"
 
-# ── 2. DynamoDB ────────────────────────────────────────────────────────────────
+# 2. DynamoDB table
 echo ">>> [deploy-local] Creating DynamoDB table..."
 aws_local dynamodb create-table \
   --table-name "$TABLE_NAME" \
@@ -41,7 +68,7 @@ aws_local dynamodb create-table \
   --key-schema AttributeName=id,KeyType=HASH \
   --billing-mode PAY_PER_REQUEST 2>/dev/null || echo "Table already exists, skipping."
 
-# ── 3. IAM role ────────────────────────────────────────────────────────────────
+# 3. IAM role
 echo ">>> [deploy-local] Creating Lambda IAM role..."
 aws_local iam create-role \
   --role-name "$LAMBDA_ROLE_NAME" \
@@ -49,7 +76,7 @@ aws_local iam create-role \
     '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}' \
   2>/dev/null || echo "Role already exists, skipping."
 
-# ── 4. Lambda functions ────────────────────────────────────────────────────────
+# 4. Lambda functions
 echo ">>> [deploy-local] Deploying Lambda functions..."
 
 deploy_lambda() {
@@ -59,13 +86,13 @@ deploy_lambda() {
     --runtime nodejs20.x \
     --role "$LAMBDA_ROLE_ARN" \
     --handler "$handler" \
-    --zip-file fileb:///tmp/lambda.zip \
+    --zip-file "fileb://$LAMBDA_ZIP" \
     --environment "Variables={${env_vars}}" \
     --timeout 10 \
     --memory-size 128 2>/dev/null || \
   aws_local lambda update-function-code \
     --function-name "$name" \
-    --zip-file fileb:///tmp/lambda.zip
+    --zip-file "fileb://$LAMBDA_ZIP"
 }
 
 deploy_lambda \
@@ -78,7 +105,7 @@ deploy_lambda \
   "handlers/reservations.handler" \
   "AWS_REGION=${REGION},ENVIRONMENT=${STAGE},DYNAMODB_TABLE_NAME=${TABLE_NAME},DYNAMODB_ENDPOINT=${ENDPOINT}"
 
-# ── 5. API Gateway ─────────────────────────────────────────────────────────────
+# 5. API Gateway
 echo ">>> [deploy-local] Setting up API Gateway..."
 
 # Create REST API with a fixed custom ID so the URL is predictable.
@@ -145,7 +172,7 @@ add_method() {
 add_cors_options() {
   local api_id="$1" resource_id="$2" methods="$3"
   local params_file
-  params_file=$(mktemp /tmp/cors-params-XXXX.json)
+  params_file="${TEMP_DIR}/cors-params-$$-${resource_id}.json"
   cat > "$params_file" << EOF
 {
   "method.response.header.Access-Control-Allow-Headers": "'Content-Type'",
@@ -199,22 +226,23 @@ aws_local apigateway create-deployment \
   --rest-api-id "$API_ID" \
   --stage-name "$STAGE" 2>/dev/null || true
 
-# ── 6. Write frontend env ──────────────────────────────────────────────────────
-# Use localhost:4566 (not the internal localstack hostname) so the browser
+# 6. Write frontend env
+# Use localhost:14566 (not the internal localstack hostname) so the browser
 # and Next.js dev server can reach the API from the host machine.
-API_URL="http://localhost:4566/restapis/${API_ID}/${STAGE}/_user_request_"
+# The frontend proxies via /api/... routes to this backend URL.
+API_URL="http://localhost:14566/restapis/${API_ID}/${STAGE}/_user_request_"
 
-echo ">>> [deploy-local] Writing API URL to frontend/.env.local..."
-cat > /app/frontend/.env.local << EOF
-# Written by scripts/deploy-local.sh — do not edit by hand.
-NEXT_PUBLIC_API_BASE_URL=${API_URL}
+echo ">>> [deploy-local] Writing Backend API URL to frontend/.env.local..."
+cat > "$FRONTEND_DIR/.env.local" << EOF
+# Written by scripts/deploy-local.sh -- do not edit by hand.
+BACKEND_API_URL=${API_URL}
 NEXT_PUBLIC_STAGE=${STAGE}
 EOF
 
 echo ""
-echo "✅ Local stack is ready!"
-echo "   API Gateway : ${API_URL}"
-echo "   DynamoDB    : ${ENDPOINT} (table: ${TABLE_NAME})"
+echo "Check Local Stack is ready!"
+echo "   API Gateway (backend) : ${API_URL}"
+echo "   Frontend API proxy    : http://localhost:3000/api"
+echo "   DynamoDB              : ${ENDPOINT} (table: ${TABLE_NAME})"
 echo ""
 echo "   Start the frontend: cd frontend && npm run dev"
-echo ""

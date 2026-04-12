@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Named network so LocalStack can place Lambda containers on it
 # and Lambda functions can reach LocalStack via the "localstack" hostname.
 networks:
@@ -13,14 +11,15 @@ services:
     networks:
       - local
     ports:
-      - '4566:4566'   # LocalStack gateway (all services)
+      - '14566:4566'   # LocalStack gateway (all services)
     environment:
       - SERVICES=dynamodb,apigateway,lambda,iam,s3
-      - DEFAULT_REGION=us-east-1
       - DEBUG=1
       # Put Lambda execution containers on the same Docker network so they
       # can resolve the "localstack" hostname (used for DYNAMODB_ENDPOINT).
       - LAMBDA_DOCKER_NETWORK=accommodations-local
+      # Override with LOCALSTACK_AUTH_TOKEN in your shell/CI if needed.
+      - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN:-ls-JoMO5116-YIQi-Jepa-0038-vilAZunaad17}
     volumes:
       - '/var/run/docker.sock:/var/run/docker.sock'
     healthcheck:
