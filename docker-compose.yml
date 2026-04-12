@@ -18,8 +18,8 @@ services:
       # Put Lambda execution containers on the same Docker network so they
       # can resolve the "localstack" hostname (used for DYNAMODB_ENDPOINT).
       - LAMBDA_DOCKER_NETWORK=accommodations-local
-      # Override with LOCALSTACK_AUTH_TOKEN in your shell/CI if needed.
-      - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN:-ls-JoMO5116-YIQi-Jepa-0038-vilAZunaad17}
+      # Set LOCALSTACK_AUTH_TOKEN in your shell or CI environment (required for LocalStack Pro).
+      - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN}
     volumes:
       - '/var/run/docker.sock:/var/run/docker.sock'
     healthcheck:
@@ -30,7 +30,7 @@ services:
 
   # One-shot service: builds the Lambda, deploys every AWS resource to
   # LocalStack, and writes the API URL to frontend/.env.local so that
-  # `npm run dev` just works without any manual commands.
+  # the frontend service starts with the correct BACKEND_API_URL.
   deploy:
     build:
       context: .
@@ -50,3 +50,24 @@ services:
       - ./backend:/app/backend
       - ./frontend:/app/frontend
       - ./scripts:/app/scripts
+
+  # Next.js dev server — starts after the deploy service has written
+  # frontend/.env.local with the correct BACKEND_API_URL.
+  frontend:
+    image: node:20-alpine
+    container_name: accommodations-frontend
+    working_dir: /app
+    networks:
+      - local
+    depends_on:
+      deploy:
+        condition: service_completed_successfully
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./frontend:/app
+      # Isolate node_modules inside the container so host installs don't interfere.
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev"

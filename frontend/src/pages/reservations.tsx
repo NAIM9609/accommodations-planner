@@ -68,24 +68,15 @@ function ReservationsPage(): JSX.Element {
         <meta name="description" content="Manage your reservations at Maple Grove B&B" />
       </Head>
 
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px' }}>
+        <div className="reservations-header">
           <div>
-            <h1 style={{ fontSize: '2rem', color: '#333', margin: 0 }}>Reservations</h1>
+            <h1 style={{ fontSize: 'clamp(1.4rem, 4vw, 2rem)', color: '#333', margin: 0 }}>Reservations</h1>
             <p style={{ color: '#666', margin: '8px 0 0' }}>Manage all B&amp;B reservations</p>
           </div>
           <button
             onClick={() => setShowForm(!showForm)}
-            style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              border: 'none',
-              padding: '12px 24px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: '1rem',
-            }}
+            className="reservations-new-btn"
           >
             {showForm ? '✕ Cancel' : '+ New Reservation'}
           </button>
@@ -138,18 +129,9 @@ function ReservationsPage(): JSX.Element {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {reservations.map(r => (
-              <div key={r.id} style={{
-                background: 'white',
-                borderRadius: '12px',
-                padding: '24px',
-                boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
-                display: 'grid',
-                gridTemplateColumns: '1fr auto',
-                gap: '16px',
-                alignItems: 'start',
-              }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+              <div key={r.id} className="reservation-card">
+                <div className="reservation-card__info">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
                     <h3 style={{ margin: 0, color: '#333', fontSize: '1.1rem' }}>{r.guestName}</h3>
                     <span style={{
                       background: roomBadgeColor[r.roomType] ?? '#6c757d',
@@ -173,22 +155,25 @@ function ReservationsPage(): JSX.Element {
                     ID: {r.id} · Booked: {new Date(r.createdAt).toLocaleDateString()}
                   </p>
                 </div>
-                <button
-                  onClick={() => handleDelete(r.id)}
-                  style={{
-                    background: 'none',
-                    border: '1px solid #dc3545',
-                    color: '#dc3545',
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    fontSize: '0.85rem',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  Cancel
-                </button>
+                <div className="reservation-card__actions">
+                  <button
+                    onClick={() => handleDelete(r.id)}
+                    style={{
+                      background: 'none',
+                      border: '1px solid #dc3545',
+                      color: '#dc3545',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontSize: '0.85rem',
+                      whiteSpace: 'nowrap',
+                      minHeight: '40px',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             ))}
           </div>

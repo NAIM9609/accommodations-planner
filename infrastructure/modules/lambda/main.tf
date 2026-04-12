@@ -54,6 +54,10 @@ resource "aws_lambda_function" "health" {
       ENVIRONMENT = var.environment
     }
   }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash, layers]
+  }
 }
 
 resource "aws_lambda_function" "reservations" {
@@ -73,6 +77,10 @@ resource "aws_lambda_function" "reservations" {
       ENVIRONMENT         = var.environment
       DYNAMODB_TABLE_NAME = var.dynamodb_table_name
     }
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash, layers]
   }
 }
 

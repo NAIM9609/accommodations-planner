@@ -7,6 +7,11 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  if (!BACKEND_URL) {
+    console.error('BACKEND_API_URL environment variable is not set');
+    return res.status(500).json({ status: 'unhealthy', error: 'Server misconfiguration: BACKEND_API_URL is not set' });
+  }
+
   try {
     const response = await fetch(`${BACKEND_URL}/health`, {
       method: 'GET',

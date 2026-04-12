@@ -46,7 +46,7 @@ No SAM CLI. No manual `aws` commands. No real AWS account needed.
 
 ```bash
 docker compose up
-# Wait for: "✅ Local stack is ready!"
+# Wait for: "Check Local Stack is ready!"
 # LocalStack health: http://localhost:14566/_localstack/health
 ```
 
@@ -85,7 +85,7 @@ echo "NEXT_PUBLIC_API_BASE_URL=https://abc123.execute-api.us-east-1.amazonaws.co
 | Service | Port | Purpose |
 |---------|------|---------|
 | DynamoDB | `localhost:14566` | Reservations table |
-| API Gateway | `localhost:14566` | REST API (routes requests to Lambda) |
+| API Gateway | `localhost:14566` | HTTP API (routes requests to Lambda) |
 | Lambda | `localhost:14566` | Function execution |
 
 ### Terraform local testing (optional)
@@ -119,7 +119,7 @@ npm run dev   # http://localhost:3000
 To use a different API URL, create `frontend/.env.local` (gitignored, takes precedence):
 
 ```bash
-echo "NEXT_PUBLIC_API_BASE_URL=https://abc123.execute-api.us-east-1.amazonaws.com/dev" \
+echo "BACKEND_API_URL=https://abc123.execute-api.us-east-1.amazonaws.com/dev" \
   > frontend/.env.local
 ```
 

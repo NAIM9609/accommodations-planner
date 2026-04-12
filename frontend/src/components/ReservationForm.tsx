@@ -72,7 +72,7 @@ export default function ReservationForm({ onSubmit, submitting = false }: Reserv
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+      <div className="form-grid">
         <div style={fieldStyle}>
           <label style={labelStyle} htmlFor="guestName">Guest Name *</label>
           <input

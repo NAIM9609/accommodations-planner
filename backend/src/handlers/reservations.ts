@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { APIGatewayProxyHandler } from 'aws-lambda';
 import { PutCommand, GetCommand, DeleteCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, TABLE_NAME } from '../lib/dynamodb';
@@ -20,9 +21,18 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }
 
     if (method === 'POST') {
-      const body = JSON.parse(event.body ?? '{}');
+      let body: Record<string, unknown>;
+      try {
+        body = JSON.parse(event.body ?? 'null');
+        if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Invalid body');
+      } catch {
+        return respond(400, { message: 'Invalid JSON body' });
+      }
+      if (!body.guestName || !body.guestEmail || !body.checkIn || !body.checkOut) {
+        return respond(400, { message: 'Missing required fields: guestName, guestEmail, checkIn, checkOut' });
+      }
       const item = {
-        id: crypto.randomUUID(),
+        id: randomUUID(),
         guestName: body.guestName,
         guestEmail: body.guestEmail,
         checkIn: body.checkIn,
@@ -36,7 +46,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     if (method === 'DELETE' && id) {
       await ddb.send(new DeleteCommand({ TableName: TABLE_NAME, Key: { id } }));
-      return respond(204, {});
+      return respond(204, null);
     }
 
     return respond(405, { message: 'Method not allowed' });

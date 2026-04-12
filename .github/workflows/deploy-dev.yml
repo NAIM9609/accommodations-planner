@@ -2,7 +2,7 @@ name: Deploy Dev
 
 on:
   push:
-    branches: [main]
+    branches: [master]
 
 permissions:
   id-token: write

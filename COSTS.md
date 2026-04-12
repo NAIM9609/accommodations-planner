@@ -20,11 +20,11 @@ All services are chosen to minimize cost for low-traffic B&B usage. Estimated mo
 - **Estimated cost**: ~$0 for low traffic (< 100,000 reads/month)
 - **What increases cost**: High read/write volume, large item sizes (> 1 KB per item), DynamoDB Streams
 
-### Amazon API Gateway (REST API)
-- **Free tier**: 1 million API calls/month for the first 12 months
-- **After free tier**: $3.50 per million API calls
-- **Estimated cost**: ~$0 during free tier; ~$0.35/month for 100k requests after
-- **What increases cost**: High request volume, data transfer out (rare), caching
+### Amazon API Gateway (HTTP API)
+- **Free tier**: None (HTTP API does not have a free tier, unlike REST API)
+- **Pricing**: $1.00 per million requests (first 300M/month); $0.90/M up to 1B; $0.80/M over 1B
+- **Estimated cost**: ~$0.10/month for 100k requests; ~$1.00/month for 1M requests
+- **What increases cost**: High request volume, data transfer out (rare)
 
 ### AWS Amplify Hosting
 - **Free tier**: 1,000 build minutes/month, 5 GB storage, 15 GB data transfer/month
@@ -33,8 +33,8 @@ All services are chosen to minimize cost for low-traffic B&B usage. Estimated mo
 - **What increases cost**: Many deployments, large bundle sizes, high traffic
 
 ### Amazon CloudWatch Logs
-- **Configuration**: **5-day log retention** on all Lambda and API Gateway log groups
-- **Why 5 days**: Balances observability with cost; logs older than 5 days rarely needed for debugging
+- **Configuration**: **3-day log retention** (default; configurable via `cloudwatch_log_retention_days`; `prod.tfvars` uses 1 day) on all Lambda log groups
+- **Why short retention**: Balances observability with cost; avoids log storage accumulation; adjust via `cloudwatch_log_retention_days` variable
 - **Free tier**: 5 GB ingestion/month, 5 GB storage/month
 - **Estimated cost**: ~$0 for low traffic
 - **What increases cost**: Verbose logging (e.g., logging full request/response bodies), high request volume
@@ -67,11 +67,11 @@ All services are chosen to minimize cost for low-traffic B&B usage. Estimated mo
 |----------|-----------|
 | Lambda 128 MB memory | Minimum viable for Node.js; simple CRUD doesn't need more |
 | DynamoDB `PAY_PER_REQUEST` | No wasted capacity for variable/low traffic |
-| 5-day CloudWatch retention | Avoid log storage accumulation; sufficient for debugging |
+| 3-day CloudWatch retention (default) | Avoid log storage accumulation; sufficient for debugging; prod uses 1 day |
 | No NAT Gateway | Lambda runs without VPC to avoid ~$32/month NAT cost |
 | No ElastiCache | DynamoDB latency is acceptable for B&B use case |
 | Amplify SSG (not SSR) | Static generation avoids Amplify SSR compute costs |
-| API Gateway REST (not HTTP API) | Free tier applies; HTTP API has no free tier |
+| API Gateway HTTP API (not REST API) | Lower per-request cost ($1.00/M vs $3.50/M for REST); note: no free tier |
 
 ---
 

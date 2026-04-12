@@ -97,64 +97,118 @@ resource "aws_iam_role_policy" "github_actions" {
           "amplify:UpdateBranch",
           "lambda:UpdateFunctionCode",
           "lambda:GetFunction",
-          "lambda:CreateFunction",
-          "lambda:DeleteFunction",
-          "lambda:PublishVersion",
-          "lambda:UpdateAlias",
-          "lambda:PublishLayerVersion",
-          "lambda:DeleteLayerVersion",
-          "lambda:GetLayerVersion",
-          "lambda:UpdateFunctionConfiguration",
-          "lambda:AddPermission",
-          "lambda:RemovePermission",
-          "apigateway:GET",
-          "apigateway:POST",
-          "apigateway:PUT",
-          "apigateway:PATCH",
-          "apigateway:DELETE",
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:ListBucket",
-          "dynamodb:DescribeTable",
-          "dynamodb:GetItem",
-          "dynamodb:PutItem",
-          "dynamodb:DeleteItem",
-          "dynamodb:CreateTable",
-          "dynamodb:DeleteTable",
-          "dynamodb:UpdateTable",
-          "iam:CreateRole",
-          "iam:DeleteRole",
-          "iam:GetRole",
-          "iam:PassRole",
-          "iam:AttachRolePolicy",
-          "iam:DetachRolePolicy",
-          "iam:PutRolePolicy",
-          "iam:DeleteRolePolicy",
-          "iam:UpdateAssumeRolePolicy",
-          "iam:CreateOpenIDConnectProvider",
-          "iam:DeleteOpenIDConnectProvider",
-          "iam:GetOpenIDConnectProvider",
-          "iam:AddClientIDToOpenIDConnectProvider",
-          "iam:RemoveClientIDFromOpenIDConnectProvider",
-          "iam:UpdateOpenIDConnectProviderThumbprint",
-          "logs:CreateLogGroup",
-          "logs:DeleteLogGroup",
-          "logs:PutRetentionPolicy",
-          "logs:DeleteRetentionPolicy"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "lambda:UpdateFunctionCode",
-          "lambda:UpdateFunctionConfiguration",
-          "lambda:GetFunction"
-        ]
-        Resource = [
-          "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${local.prefix}-*"
-        ]
-      }
-    ]
-  })
-}
+          {
+            # Amplify: scoped to all apps in this account/region (app ID not known until first apply)
+            Effect = "Allow"
+            Action = [
+              "amplify:CreateApp",
+              "amplify:DeleteApp",
+              "amplify:GetApp",
+              "amplify:UpdateApp",
+              "amplify:CreateBranch",
+              "amplify:DeleteBranch",
+              "amplify:GetBranch",
+              "amplify:UpdateBranch",
+            ]
+            Resource = "arn:aws:amplify:${var.aws_region}:${data.aws_caller_identity.current.account_id}:apps/*"
+          },
+          {
+            # Lambda: scoped to functions and layers with this stack's prefix
+            Effect = "Allow"
+            Action = [
+              "lambda:CreateFunction",
+              "lambda:DeleteFunction",
+              "lambda:GetFunction",
+              "lambda:PublishVersion",
+              "lambda:UpdateAlias",
+              "lambda:UpdateFunctionCode",
+              "lambda:UpdateFunctionConfiguration",
+              "lambda:PublishLayerVersion",
+              "lambda:DeleteLayerVersion",
+              "lambda:GetLayerVersion",
+              "lambda:AddPermission",
+              "lambda:RemovePermission",
+            ]
+            Resource = [
+              "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${local.prefix}-*",
+              "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:layer:${local.prefix}-*",
+              "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:layer:${local.prefix}-*:*",
+            ]
+          },
+          {
+            # API Gateway: scoped to this region (API IDs not known until first apply)
+            Effect = "Allow"
+            Action = [
+              "apigateway:GET",
+              "apigateway:POST",
+              "apigateway:PUT",
+              "apigateway:PATCH",
+              "apigateway:DELETE",
+            ]
+            Resource = "arn:aws:apigateway:${var.aws_region}::*"
+          },
+          {
+            # S3: Terraform state bucket name is set at bootstrap and not known here
+            Effect = "Allow"
+            Action = ["s3:GetObject", "s3:PutObject", "s3:ListBucket"]
+            Resource = "*"
+          },
+          {
+            # DynamoDB: scoped to tables with this stack's prefix
+            Effect = "Allow"
+            Action = [
+              "dynamodb:DescribeTable",
+              "dynamodb:GetItem",
+              "dynamodb:PutItem",
+              "dynamodb:DeleteItem",
+              "dynamodb:CreateTable",
+              "dynamodb:DeleteTable",
+              "dynamodb:UpdateTable",
+            ]
+            Resource = "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${local.prefix}-*"
+          },
+          {
+            # IAM role/policy management: scoped to roles with this stack's prefix
+            Effect = "Allow"
+            Action = [
+              "iam:CreateRole",
+              "iam:DeleteRole",
+              "iam:GetRole",
+              "iam:AttachRolePolicy",
+              "iam:DetachRolePolicy",
+              "iam:PutRolePolicy",
+              "iam:DeleteRolePolicy",
+              "iam:UpdateAssumeRolePolicy",
+            ]
+            Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.prefix}-*"
+          },
+          {
+            # iam:PassRole scoped to Lambda execution role only to prevent privilege escalation
+            Effect = "Allow"
+            Action = ["iam:PassRole"]
+            Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.prefix}-lambda-*"
+          },
+          {
+            # OIDC provider: scoped to GitHub Actions provider (deterministic ARN)
+            Effect = "Allow"
+            Action = [
+              "iam:CreateOpenIDConnectProvider",
+              "iam:DeleteOpenIDConnectProvider",
+              "iam:GetOpenIDConnectProvider",
+              "iam:AddClientIDToOpenIDConnectProvider",
+              "iam:RemoveClientIDFromOpenIDConnectProvider",
+              "iam:UpdateOpenIDConnectProviderThumbprint",
+            ]
+            Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
+          },
+          {
+            # CloudWatch Logs: scoped to Lambda log groups with this stack's prefix
+            Effect = "Allow"
+            Action = [
+              "logs:CreateLogGroup",
+              "logs:DeleteLogGroup",
+              "logs:PutRetentionPolicy",
+              "logs:DeleteRetentionPolicy",
+            ]
+            Resource = "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${local.prefix}-*"
+          }

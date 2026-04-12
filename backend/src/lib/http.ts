@@ -3,9 +3,16 @@ import { APIGatewayProxyResult } from 'aws-lambda';
 export const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
-  'Content-Type': 'application/json',
+  'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PUT,PATCH,DELETE',
 };
 
 export function respond(statusCode: number, body: unknown): APIGatewayProxyResult {
-  return { statusCode, headers: cors, body: JSON.stringify(body) };
+  if (statusCode === 204) {
+    return { statusCode, headers: cors, body: '' };
+  }
+  return {
+    statusCode,
+    headers: { ...cors, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  };
 }
