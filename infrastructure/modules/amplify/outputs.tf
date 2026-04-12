@@ -5,3 +5,9 @@ output "app_url" {
 output "app_id" {
   value = aws_amplify_app.frontend.id
 }
+
+output "custom_domain_url" {
+  value = var.custom_domain_enabled ? (
+    var.custom_domain_prefix != "" ? "https://${var.custom_domain_prefix}.${var.custom_domain_name}" : "https://${var.custom_domain_name}"
+  ) : null
+}

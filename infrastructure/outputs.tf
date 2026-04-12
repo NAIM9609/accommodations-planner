@@ -8,6 +8,11 @@ output "frontend_url" {
   value       = module.amplify.app_url
 }
 
+output "frontend_custom_domain_url" {
+  description = "Amplify custom domain URL when enabled"
+  value       = module.amplify.custom_domain_url
+}
+
 output "dynamodb_table_name" {
   description = "DynamoDB table name"
   value       = module.dynamodb.table_name

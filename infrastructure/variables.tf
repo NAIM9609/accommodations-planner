@@ -30,6 +30,28 @@ variable "github_branch" {
   default     = "master"
 }
 
+variable "amplify_custom_domain_enabled" {
+  description = "Enable Amplify custom domain association"
+  type        = bool
+  default     = false
+}
+
+variable "amplify_custom_domain_name" {
+  description = "Custom domain to attach to Amplify (for example: example.com)"
+  type        = string
+  default     = ""
+  validation {
+    condition     = var.amplify_custom_domain_enabled ? length(trimspace(var.amplify_custom_domain_name)) > 0 : true
+    error_message = "amplify_custom_domain_name must be set when amplify_custom_domain_enabled is true."
+  }
+}
+
+variable "amplify_custom_domain_prefix" {
+  description = "Subdomain prefix for Amplify custom domain mapping (empty string for apex/root domain)"
+  type        = string
+  default     = ""
+}
+
 variable "lambda_reserved_concurrency" {
   description = "Reserved concurrency per Lambda function to cap burst cost"
   type        = number

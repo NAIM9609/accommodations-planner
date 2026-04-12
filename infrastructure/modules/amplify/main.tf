@@ -49,3 +49,15 @@ resource "aws_amplify_branch" "main" {
     BACKEND_API_URL          = var.api_base_url
   }
 }
+
+resource "aws_amplify_domain_association" "custom" {
+  count = var.custom_domain_enabled ? 1 : 0
+
+  app_id      = aws_amplify_app.frontend.id
+  domain_name = var.custom_domain_name
+
+  sub_domain {
+    branch_name = aws_amplify_branch.main.branch_name
+    prefix      = var.custom_domain_prefix
+  }
+}
