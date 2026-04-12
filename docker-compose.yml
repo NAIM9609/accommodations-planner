@@ -1,21 +1,53 @@
 version: '3.8'
 
+# Named network so LocalStack can place Lambda containers on it
+# and Lambda functions can reach LocalStack via the "localstack" hostname.
+networks:
+  local:
+    name: accommodations-local
+
 services:
   localstack:
     image: localstack/localstack:latest
     container_name: accommodations-localstack
+    networks:
+      - local
     ports:
       - '4566:4566'   # LocalStack gateway (all services)
     environment:
       - SERVICES=dynamodb,apigateway,lambda,iam,s3
       - DEFAULT_REGION=us-east-1
-      - LAMBDA_EXECUTOR=local
       - DEBUG=1
+      # Put Lambda execution containers on the same Docker network so they
+      # can resolve the "localstack" hostname (used for DYNAMODB_ENDPOINT).
+      - LAMBDA_DOCKER_NETWORK=accommodations-local
     volumes:
       - '/var/run/docker.sock:/var/run/docker.sock'
-      - './scripts/localstack-init.sh:/etc/localstack/init/ready.d/init.sh'
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:4566/_localstack/health']
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # One-shot service: builds the Lambda, deploys every AWS resource to
+  # LocalStack, and writes the API URL to frontend/.env.local so that
+  # `npm run dev` just works without any manual commands.
+  deploy:
+    build:
+      context: .
+      dockerfile: scripts/Dockerfile.deploy
+    container_name: accommodations-deploy
+    networks:
+      - local
+    depends_on:
+      localstack:
+        condition: service_healthy
+    environment:
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - LOCALSTACK_ENDPOINT=http://localstack:4566
+    volumes:
+      - ./backend:/app/backend
+      - ./frontend:/app/frontend
+      - ./scripts:/app/scripts

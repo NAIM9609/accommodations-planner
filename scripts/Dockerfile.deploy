@@ -1,0 +1,10 @@
+FROM node:20-alpine
+
+# AWS CLI (v1 via pip) + packaging tools
+RUN apk add --no-cache python3 py3-pip zip bash curl && \
+    pip3 install --no-cache-dir awscli 2>/dev/null || \
+    pip3 install --no-cache-dir --break-system-packages awscli
+
+WORKDIR /app
+
+CMD ["/app/scripts/deploy-local.sh"]

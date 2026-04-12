@@ -32,46 +32,48 @@ accommodations-planner/
 | GitHub CLI | latest |
 | AWS Account | with IAM permissions |
 | Docker | 24.x+ (for LocalStack) |
-| AWS SAM CLI | latest (optional, for local Lambda invoke) |
 
 ---
 
 ## 🐳 Local Development with LocalStack
 
-LocalStack emulates AWS services (DynamoDB, API Gateway, Lambda) on your machine — no real AWS account needed for local testing.
+`docker compose up` starts **everything**: LocalStack emulates AWS (DynamoDB,
+API Gateway, Lambda), and the bundled `deploy` service builds the TypeScript
+Lambda, deploys all resources, and writes the API URL to `frontend/.env.local`.
+No SAM CLI. No manual `aws` commands. No real AWS account needed.
 
-### 1. Start LocalStack
+### 1. Start the full local stack
 
 ```bash
-docker compose up -d
+docker compose up
+# Wait for: "✅ Local stack is ready!"
 # LocalStack health: http://localhost:4566/_localstack/health
 ```
 
-The init script (`scripts/localstack-init.sh`) automatically creates the DynamoDB table on startup.
+The `deploy` service (see `scripts/deploy-local.sh`) runs once and:
+1. Builds the TypeScript Lambda (`npm run build`)
+2. Creates the DynamoDB table
+3. Creates the Lambda functions in LocalStack
+4. Creates the API Gateway with all routes (including CORS preflight support)
+5. Writes the API URL to `frontend/.env.local`
 
-### 2. Run the backend (Lambda) locally
-
-```bash
-cd backend
-npm install
-cp .env.example .env.local   # already has DYNAMODB_ENDPOINT=http://localhost:4566
-export $(grep -v '^#' .env.local | xargs)
-sam local start-api           # API available at http://localhost:3001
-```
-
-> Unit tests never need LocalStack — DynamoDB is fully mocked by Jest: `npm test`
-
-### 3. Run the frontend
-
-`frontend/.env.development` is committed with localhost defaults and is loaded **automatically** by `npm run dev`. No manual setup needed.
+### 2. Run the frontend
 
 ```bash
 cd frontend
 npm install
-npm run dev   # http://localhost:3000  →  API at http://localhost:3001 (SAM local)
+npm run dev   # http://localhost:3000  →  API at LocalStack (port 4566)
 ```
 
-To override the API URL (e.g. point to a real deployed API), create `frontend/.env.local` (gitignored):
+`frontend/.env.development` is committed with the LocalStack URL as the stable
+default. `frontend/.env.local` (written by the deploy service) takes precedence
+and always contains the exact URL for the current LocalStack instance.
+
+> Start the frontend **after** docker compose reports the stack is ready.
+> If you started it first, restart `npm run dev` to pick up the new `.env.local`.
+
+To override the API URL (e.g. point to a real deployed API), create
+`frontend/.env.local` manually:
 
 ```bash
 echo "NEXT_PUBLIC_API_BASE_URL=https://abc123.execute-api.us-east-1.amazonaws.com/dev" \
@@ -80,19 +82,33 @@ echo "NEXT_PUBLIC_API_BASE_URL=https://abc123.execute-api.us-east-1.amazonaws.co
 
 ### LocalStack services used
 
-| Service | Local port | Purpose |
-|---------|-----------|---------|
+| Service | Port | Purpose |
+|---------|------|---------|
 | DynamoDB | `localhost:4566` | Reservations table |
-| API Gateway | `localhost:4566` | REST API emulation |
-| Lambda | `localhost:4566` | Function emulation |
+| API Gateway | `localhost:4566` | REST API (routes requests to Lambda) |
+| Lambda | `localhost:4566` | Function execution |
+
+### Terraform local testing (optional)
+
+Use [`tflocal`](https://github.com/localstack/terraform-local) to run Terraform
+against LocalStack — no provider changes needed, it handles endpoint overrides:
+
+```bash
+pip install terraform-local
+cd infrastructure
+tflocal init
+# Test core modules only (Amplify not available in LocalStack Community):
+tflocal apply -var-file=local.tfvars \
+  -target=module.dynamodb \
+  -target=module.lambda \
+  -target=module.api_gateway
+```
 
 ---
 
 ## 🚀 Local Development
 
 ### Frontend
-
-`frontend/.env.development` is committed with LocalStack localhost defaults — no setup required:
 
 ```bash
 cd frontend
@@ -107,7 +123,7 @@ echo "NEXT_PUBLIC_API_BASE_URL=https://abc123.execute-api.us-east-1.amazonaws.co
   > frontend/.env.local
 ```
 
-### Backend (tests only — Lambda runs on AWS)
+### Backend (tests only — Lambda runs in LocalStack or AWS)
 
 Unit tests mock DynamoDB entirely, so no real AWS credentials or env vars are needed:
 
@@ -118,21 +134,14 @@ npm test        # all tests run in-process with mocked DynamoDB
 npm run build   # compiles TypeScript → dist/
 ```
 
-For **manual local integration testing** against a real DynamoDB table:
+For **manual local integration testing** against LocalStack (after `docker compose up`):
 
 ```bash
-# Copy the example and fill in your values
-cp backend/.env.example backend/.env.local
-
-# Load vars and invoke a handler locally via AWS SAM CLI
-#   https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/using-sam-cli-local-invoke.html
-export $(grep -v '^#' backend/.env.local | xargs)
-sam local invoke HealthFunction
-
-# Or simply run tests with real env vars set:
-AWS_REGION=us-east-1 \
-  DYNAMODB_TABLE_NAME=accommodations-planner-dev-reservations \
-  npm --prefix backend test
+# Export env vars and invoke the handler manually via awslocal
+export AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1
+awslocal lambda invoke \
+  --function-name accommodations-planner-dev-health \
+  --payload '{}' /tmp/response.json && cat /tmp/response.json
 ```
 
 > **Never commit `backend/.env.local`** — it is already listed in `.gitignore`.
@@ -145,14 +154,14 @@ AWS_REGION=us-east-1 \
 
 | File | Committed | Loaded in | Purpose |
 |------|-----------|-----------|---------|
-| `frontend/.env.development` | ✅ | `next dev` | Localhost defaults (LocalStack / SAM local) |
-| `frontend/.env.local` | ❌ gitignored | always | Personal overrides (takes precedence) |
+| `frontend/.env.development` | ✅ | `next dev` | Localhost defaults (LocalStack) |
+| `frontend/.env.local` | ❌ gitignored | always | Written by deploy service; personal overrides (takes precedence) |
 | `frontend/.env.example` | ✅ | manual | Template — documents available variables |
 
 | Variable | Description | Local default |
 |----------|-------------|---------------|
-| `NEXT_PUBLIC_API_BASE_URL` | API base URL | `http://localhost:3001` (SAM local) |
-| `NEXT_PUBLIC_STAGE` | Deployment stage | `local` |
+| `NEXT_PUBLIC_API_BASE_URL` | API base URL | `http://localhost:4566/restapis/aplocal/dev/_user_request_` (LocalStack) |
+| `NEXT_PUBLIC_STAGE` | Deployment stage | `dev` |
 
 ### Backend (Lambda environment variables — set by Terraform, no defaults)
 
