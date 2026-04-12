@@ -1,0 +1,86 @@
+name: Deploy Backend (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Deployment environment (dev or prod)'
+        required: true
+        type: string
+      prefix:
+        description: 'Resource name prefix, e.g. accommodations-planner-dev'
+        required: true
+        type: string
+      aws_region:
+        description: 'AWS region'
+        required: true
+        type: string
+    secrets:
+      AWS_ROLE_ARN:
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Build backend
+        working-directory: backend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build and publish Lambda layer
+        working-directory: backend
+        run: |
+          cd layer
+          npm install --omit=dev
+          cd ..
+          mkdir -p layer-build/nodejs
+          cp -r layer/node_modules layer-build/nodejs/
+          cd layer-build && zip -r ../layer.zip nodejs && cd ..
+          LAYER_ARN=$(aws lambda publish-layer-version \
+            --layer-name ${{ inputs.prefix }}-deps \
+            --zip-file fileb://layer.zip \
+            --compatible-runtimes nodejs20.x \
+            --query LayerVersionArn --output text)
+          echo "LAYER_ARN=$LAYER_ARN" >> $GITHUB_ENV
+
+      - name: Deploy Lambda function code
+        working-directory: backend
+        run: |
+          cd dist && zip -r ../lambda.zip . && cd ..
+          aws lambda update-function-code \
+            --function-name ${{ inputs.prefix }}-health \
+            --zip-file fileb://lambda.zip
+          aws lambda update-function-code \
+            --function-name ${{ inputs.prefix }}-reservations \
+            --zip-file fileb://lambda.zip
+
+      - name: Attach layer to Lambda functions
+        run: |
+          aws lambda update-function-configuration \
+            --function-name ${{ inputs.prefix }}-health \
+            --layers ${{ env.LAYER_ARN }}
+          aws lambda update-function-configuration \
+            --function-name ${{ inputs.prefix }}-reservations \
+            --layers ${{ env.LAYER_ARN }}

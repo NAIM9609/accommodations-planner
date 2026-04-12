@@ -1,0 +1,22 @@
+{
+  "name": "accommodations-planner",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w frontend",
+    "build": "npm run build -w frontend",
+    "start": "npm run start -w frontend",
+    "frontend": "npm run dev -w frontend",
+    "backend:test": "npm run test -w backend"
+  },
+  "overrides": {
+    "caniuse-lite": "1.0.30001699"
+  },
+  "devDependencies": {
+    "caniuse-lite": "1.0.30001699",
+    "es-abstract": "1.24.0"
+  }
+}

@@ -1,0 +1,115 @@
+name: Deploy Prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy-prod" to confirm production deployment'
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  validate-input:
+    name: Validate Confirmation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check confirmation
+        if: ${{ github.event.inputs.confirm != 'deploy-prod' }}
+        run: |
+          echo "Confirmation text did not match. Aborting."
+          exit 1
+
+      - name: Enforce master branch for prod
+        if: ${{ github.ref != 'refs/heads/master' }}
+        run: |
+          echo "Production deploys are allowed only from master. Current ref: ${{ github.ref }}"
+          exit 1
+
+  local-docker-smoke:
+    name: Local Docker Smoke Tests
+    needs: validate-input
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start LocalStack + deploy service
+        run: docker compose up -d --build localstack deploy
+
+      - name: Wait for API to be reachable
+        run: |
+          for i in {1..60}; do
+            if curl -fsS "http://localhost:14566/restapis/aplocal/dev/_user_request_/health" >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Local API did not become ready in time"
+          docker compose logs localstack deploy
+          exit 1
+
+      - name: Run smoke checks against LocalStack API
+        run: |
+          set -euo pipefail
+          # Backend API endpoint (frontend proxies via /api/... routes)
+          API="http://localhost:14566/restapis/aplocal/dev/_user_request_"
+
+          # Health endpoint must be healthy.
+          curl -fsS "$API/health" | grep -q '"status"'
+
+          # Create reservation and verify it appears in listing.
+          CREATE_RESPONSE=$(curl -fsS -X POST "$API/reservations" \
+            -H "Content-Type: application/json" \
+            -d '{"guestName":"CI Guest","guestEmail":"ci@example.com","checkIn":"2026-05-01","checkOut":"2026-05-03","roomType":"standard"}')
+          CREATED_ID=$(printf '%s' "$CREATE_RESPONSE" | jq -r '.id')
+          test -n "$CREATED_ID" && test "$CREATED_ID" != "null"
+
+          LIST_RESPONSE=$(curl -fsS "$API/reservations")
+          printf '%s' "$LIST_RESPONSE" | jq -e --arg id "$CREATED_ID" 'map(select(.id == $id)) | length > 0' >/dev/null
+
+      - name: Dump Docker logs on failure
+        if: failure()
+        run: docker compose logs localstack deploy
+
+      - name: Tear down local stack
+        if: always()
+        run: docker compose down -v
+
+  deploy-backend-prod:
+    name: Deploy Backend to Prod
+    needs: [validate-input, local-docker-smoke, deploy-infra-prod]
+    uses: ./.github/workflows/deploy-backend.yml
+    with:
+      environment: prod
+      prefix: accommodations-planner-prod
+      aws_region: ${{ vars.AWS_REGION }}
+    secrets:
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+
+  deploy-infra-prod:
+    name: Terraform Apply Prod
+    needs: [validate-input, local-docker-smoke]
+    runs-on: ubuntu-latest
+    environment: prod
+    defaults:
+      run:
+        working-directory: infrastructure
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.7.5'
+
+      - run: terraform init
+      - run: terraform workspace select prod || terraform workspace new prod
+      - run: terraform plan -var-file="prod.tfvars" -var="environment=prod" -var="aws_region=${{ vars.AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
+      - run: terraform apply -auto-approve -var-file="prod.tfvars" -var="environment=prod" -var="aws_region=${{ vars.AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"

@@ -1,0 +1,10 @@
+{
+  "name": "accommodations-planner-layer",
+  "version": "0.1.0",
+  "description": "Lambda Layer – production dependencies shared across all functions",
+  "private": true,
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "3.1029.0",
+    "@aws-sdk/lib-dynamodb": "3.1029.0"
+  }
+}

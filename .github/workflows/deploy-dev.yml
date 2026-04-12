@@ -1,0 +1,46 @@
+name: Deploy Dev
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-backend-dev:
+    name: Deploy Backend to Dev
+    uses: ./.github/workflows/deploy-backend.yml
+    with:
+      environment: dev
+      prefix: accommodations-planner-dev
+      aws_region: ${{ vars.AWS_REGION }}
+    secrets:
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+
+  deploy-infra-dev:
+    name: Terraform Plan/Apply Dev
+    runs-on: ubuntu-latest
+    environment: dev
+    defaults:
+      run:
+        working-directory: infrastructure
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.7.5'
+
+      - run: terraform init
+      - run: terraform workspace select dev || terraform workspace new dev
+      - run: terraform plan -var="environment=dev" -var="aws_region=${{ vars.AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
+      - run: terraform apply -auto-approve -var="environment=dev" -var="aws_region=${{ vars.AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
+
