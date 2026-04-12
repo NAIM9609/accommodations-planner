@@ -1,16 +1,7 @@
-import { APIGatewayProxyHandler, APIGatewayProxyResult } from 'aws-lambda';
+import { APIGatewayProxyHandler } from 'aws-lambda';
 import { PutCommand, GetCommand, DeleteCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, TABLE_NAME } from '../lib/dynamodb';
-
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Content-Type': 'application/json',
-};
-
-function respond(statusCode: number, body: unknown): APIGatewayProxyResult {
-  return { statusCode, headers: cors, body: JSON.stringify(body) };
-}
+import { respond } from '../lib/http';
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   const method = event.httpMethod;

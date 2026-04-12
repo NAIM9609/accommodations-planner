@@ -1,3 +1,15 @@
+locals {
+  lambda_common = {
+    role             = aws_iam_role.lambda.arn
+    runtime          = "nodejs20.x"
+    timeout          = 10
+    memory_size      = 128
+    filename         = data.archive_file.lambda_placeholder.output_path
+    source_code_hash = data.archive_file.lambda_placeholder.output_base64sha256
+  }
+  log_retention_days = 5
+}
+
 data "archive_file" "lambda_placeholder" {
   type        = "zip"
   output_path = "${path.module}/lambda_placeholder.zip"
@@ -8,16 +20,33 @@ data "archive_file" "lambda_placeholder" {
   }
 }
 
-resource "aws_lambda_function" "health" {
-  function_name = "${var.prefix}-health"
-  role          = aws_iam_role.lambda.arn
-  handler       = "handlers/health.handler"
-  runtime       = "nodejs20.x"
-  timeout       = 10
-  memory_size   = 128
+data "archive_file" "layer_placeholder" {
+  type        = "zip"
+  output_path = "${path.module}/layer_placeholder.zip"
 
-  filename         = data.archive_file.lambda_placeholder.output_path
-  source_code_hash = data.archive_file.lambda_placeholder.output_base64sha256
+  source {
+    content  = "{}"
+    filename = "nodejs/package.json"
+  }
+}
+
+resource "aws_lambda_layer_version" "deps" {
+  layer_name          = "${var.prefix}-deps"
+  filename            = data.archive_file.layer_placeholder.output_path
+  source_code_hash    = data.archive_file.layer_placeholder.output_base64sha256
+  compatible_runtimes = ["nodejs20.x"]
+}
+
+resource "aws_lambda_function" "health" {
+  function_name    = "${var.prefix}-health"
+  role             = local.lambda_common.role
+  handler          = "handlers/health.handler"
+  runtime          = local.lambda_common.runtime
+  timeout          = local.lambda_common.timeout
+  memory_size      = local.lambda_common.memory_size
+  filename         = local.lambda_common.filename
+  source_code_hash = local.lambda_common.source_code_hash
+  layers           = [aws_lambda_layer_version.deps.arn]
 
   environment {
     variables = {
@@ -26,21 +55,16 @@ resource "aws_lambda_function" "health" {
   }
 }
 
-resource "aws_cloudwatch_log_group" "health" {
-  name              = "/aws/lambda/${aws_lambda_function.health.function_name}"
-  retention_in_days = 5
-}
-
 resource "aws_lambda_function" "reservations" {
-  function_name = "${var.prefix}-reservations"
-  role          = aws_iam_role.lambda.arn
-  handler       = "handlers/reservations.handler"
-  runtime       = "nodejs20.x"
-  timeout       = 10
-  memory_size   = 128
-
-  filename         = data.archive_file.lambda_placeholder.output_path
-  source_code_hash = data.archive_file.lambda_placeholder.output_base64sha256
+  function_name    = "${var.prefix}-reservations"
+  role             = local.lambda_common.role
+  handler          = "handlers/reservations.handler"
+  runtime          = local.lambda_common.runtime
+  timeout          = local.lambda_common.timeout
+  memory_size      = local.lambda_common.memory_size
+  filename         = local.lambda_common.filename
+  source_code_hash = local.lambda_common.source_code_hash
+  layers           = [aws_lambda_layer_version.deps.arn]
 
   environment {
     variables = {
@@ -50,9 +74,13 @@ resource "aws_lambda_function" "reservations" {
   }
 }
 
-resource "aws_cloudwatch_log_group" "reservations" {
-  name              = "/aws/lambda/${aws_lambda_function.reservations.function_name}"
-  retention_in_days = 5
+resource "aws_cloudwatch_log_group" "lambda" {
+  for_each          = toset([
+    aws_lambda_function.health.function_name,
+    aws_lambda_function.reservations.function_name,
+  ])
+  name              = "/aws/lambda/${each.value}"
+  retention_in_days = local.log_retention_days
 }
 
 resource "aws_iam_role" "lambda" {

@@ -144,10 +144,13 @@ vite.config.ts.timestamp-*
 *.tfstate.*
 .terraform.lock.hcl
 infrastructure/modules/lambda/lambda_placeholder.zip
+infrastructure/modules/lambda/layer_placeholder.zip
 
 # Build artifacts
 backend/dist/
 backend/lambda.zip
+backend/layer.zip
+backend/layer-build/
 backend/coverage/
 frontend/.next/
 frontend/out/

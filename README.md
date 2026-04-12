@@ -13,7 +13,7 @@ A production-ready monorepo for a Bed & Breakfast accommodations planner built w
 
 ```
 accommodations-planner/
-├── frontend/          # Next.js 14 app (Maple Grove B&B UI)
+├── frontend/          # Next.js 15 app (Maple Grove B&B UI)
 ├── backend/           # Lambda handlers (TypeScript)
 ├── infrastructure/    # Terraform modules (DynamoDB, Lambda, API GW, Amplify)
 └── .github/workflows/ # CI, deploy-dev, deploy-prod pipelines
