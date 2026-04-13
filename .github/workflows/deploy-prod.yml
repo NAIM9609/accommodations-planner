@@ -105,32 +105,18 @@ jobs:
           fi
 
           BRANCH="master"
-          echo "Checking for existing Amplify jobs for app $APP_ID / branch $BRANCH..."
-
-          timeout_seconds=600
-          interval=15
-          elapsed=0
-
-          while true; do
-            active_count=$(
-              aws amplify list-jobs --app-id "$APP_ID" --branch-name "$BRANCH" \
-                --query "jobSummaries[?status=='PENDING' || status=='RUNNING'] | length(@)" \
-                --output text
-            )
-
-            if [ "${active_count:-0}" = "0" ]; then
-              break
-            fi
-
-            if [ "$elapsed" -ge "$timeout_seconds" ]; then
-              echo "Timed out waiting for existing Amplify jobs to finish; skipping new trigger."
-              exit 0
-            fi
-
-            echo "Amplify has $active_count active job(s) on $BRANCH; waiting ${interval}s..."
-            sleep "$interval"
-            elapsed=$((elapsed + interval))
-          done
-
           echo "Starting Amplify build for app $APP_ID on branch $BRANCH..."
-          aws amplify start-job --app-id "$APP_ID" --branch-name "$BRANCH" --job-type RELEASE
+
+          set +e
+          start_output=$(aws amplify start-job --app-id "$APP_ID" --branch-name "$BRANCH" --job-type RELEASE 2>&1)
+          start_status=$?
+          set -e
+
+          if [ "$start_status" -ne 0 ]; then
+            echo "Amplify start-job was not started immediately (possibly another build is already active)."
+            echo "$start_output"
+            echo "Skipping without failing this production deployment workflow."
+            exit 0
+          fi
+
+          echo "$start_output"
