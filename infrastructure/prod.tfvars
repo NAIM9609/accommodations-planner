@@ -4,6 +4,7 @@ lambda_reserved_concurrency   = 1
 cloudwatch_log_retention_days = 1
 api_throttle_rate_limit       = 2
 api_throttle_burst_limit      = 4
+allow_dynamodb_destroy        = false
 
 # Optional future custom domain for Amplify (disabled by default)
 # amplify_custom_domain_enabled = true

@@ -33,6 +33,7 @@ resource "aws_amplify_app" "frontend" {
     status = "404-200"
     target = "/404.html"
   }
+
 }
 
 resource "aws_amplify_branch" "main" {
@@ -45,6 +46,7 @@ resource "aws_amplify_branch" "main" {
     NEXT_PUBLIC_API_BASE_URL = var.api_base_url
     NEXT_PUBLIC_STAGE        = var.environment
   }
+
 }
 
 resource "aws_amplify_domain_association" "custom" {
@@ -57,4 +59,5 @@ resource "aws_amplify_domain_association" "custom" {
     branch_name = aws_amplify_branch.main.branch_name
     prefix      = var.custom_domain_prefix
   }
+
 }

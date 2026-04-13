@@ -15,6 +15,7 @@
 
 aws_region  = "us-east-1"
 environment = "dev"
+allow_dynamodb_destroy = false
 # Amplify is not available in LocalStack Community; use -target to skip it.
 # The value below is a placeholder so terraform doesn't error on the variable.
 amplify_github_token = "dummy-not-used-locally"

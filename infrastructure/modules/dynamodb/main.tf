@@ -11,4 +11,8 @@ resource "aws_dynamodb_table" "reservations" {
   tags = {
     Name = var.table_name
   }
+
+  lifecycle {
+    prevent_destroy = !var.allow_table_destroy
+  }
 }

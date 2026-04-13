@@ -98,3 +98,9 @@ variable "amplify_github_token" {
   type        = string
   sensitive   = true
 }
+
+variable "allow_dynamodb_destroy" {
+  description = "Allow Terraform to destroy/replace DynamoDB table when explicitly intended."
+  type        = bool
+  default     = false
+}
