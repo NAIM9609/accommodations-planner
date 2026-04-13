@@ -9,15 +9,19 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   const id = event.pathParameters?.id;
 
   try {
+    if (method === 'OPTIONS') {
+      return respond(204, null, event.headers);
+    }
+
     if (method === 'GET' && !id) {
       const result = await ddb.send(new ScanCommand({ TableName: TABLE_NAME }));
-      return respond(200, result.Items ?? []);
+      return respond(200, result.Items ?? [], event.headers);
     }
 
     if (method === 'GET' && id) {
       const result = await ddb.send(new GetCommand({ TableName: TABLE_NAME, Key: { id } }));
-      if (!result.Item) return respond(404, { message: 'Not found' });
-      return respond(200, result.Item);
+      if (!result.Item) return respond(404, { message: 'Not found' }, event.headers);
+      return respond(200, result.Item, event.headers);
     }
 
     if (method === 'POST') {
@@ -26,10 +30,10 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         body = JSON.parse(event.body ?? 'null');
         if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Invalid body');
       } catch {
-        return respond(400, { message: 'Invalid JSON body' });
+        return respond(400, { message: 'Invalid JSON body' }, event.headers);
       }
       if (!body.guestName || !body.guestEmail || !body.checkIn || !body.checkOut) {
-        return respond(400, { message: 'Missing required fields: guestName, guestEmail, checkIn, checkOut' });
+        return respond(400, { message: 'Missing required fields: guestName, guestEmail, checkIn, checkOut' }, event.headers);
       }
       const item = {
         id: randomUUID(),
@@ -41,17 +45,17 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         createdAt: new Date().toISOString(),
       };
       await ddb.send(new PutCommand({ TableName: TABLE_NAME, Item: item }));
-      return respond(201, item);
+      return respond(201, item, event.headers);
     }
 
     if (method === 'DELETE' && id) {
       await ddb.send(new DeleteCommand({ TableName: TABLE_NAME, Key: { id } }));
-      return respond(204, null);
+      return respond(204, null, event.headers);
     }
 
-    return respond(405, { message: 'Method not allowed' });
+    return respond(405, { message: 'Method not allowed' }, event.headers);
   } catch (err) {
     console.error(err);
-    return respond(500, { message: 'Internal server error' });
+    return respond(500, { message: 'Internal server error' }, event.headers);
   }
 };

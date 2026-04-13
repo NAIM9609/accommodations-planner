@@ -27,6 +27,12 @@ resource "aws_apigatewayv2_route" "health_get" {
   target    = "integrations/${aws_apigatewayv2_integration.health.id}"
 }
 
+resource "aws_apigatewayv2_route" "health_options" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "OPTIONS /health"
+  target    = "integrations/${aws_apigatewayv2_integration.health.id}"
+}
+
 resource "aws_apigatewayv2_route" "reservations_get" {
   api_id    = aws_apigatewayv2_api.api.id
   route_key = "GET /reservations"
@@ -39,6 +45,12 @@ resource "aws_apigatewayv2_route" "reservations_post" {
   target    = "integrations/${aws_apigatewayv2_integration.reservations.id}"
 }
 
+resource "aws_apigatewayv2_route" "reservations_options" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "OPTIONS /reservations"
+  target    = "integrations/${aws_apigatewayv2_integration.reservations.id}"
+}
+
 resource "aws_apigatewayv2_route" "reservation_id_get" {
   api_id    = aws_apigatewayv2_api.api.id
   route_key = "GET /reservations/{id}"
@@ -48,6 +60,12 @@ resource "aws_apigatewayv2_route" "reservation_id_get" {
 resource "aws_apigatewayv2_route" "reservation_id_delete" {
   api_id    = aws_apigatewayv2_api.api.id
   route_key = "DELETE /reservations/{id}"
+  target    = "integrations/${aws_apigatewayv2_integration.reservations.id}"
+}
+
+resource "aws_apigatewayv2_route" "reservation_id_options" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "OPTIONS /reservations/{id}"
   target    = "integrations/${aws_apigatewayv2_integration.reservations.id}"
 }
 

@@ -1,6 +1,9 @@
 locals {
   prefix           = "${var.app_name}-${var.environment}"
   oidc_sub_pattern = var.environment == "prod" ? "repo:${var.github_repo}:ref:refs/heads/master" : "repo:${var.github_repo}:*"
+  amplify_custom_domain_url = var.amplify_custom_domain_enabled ? (
+    var.amplify_custom_domain_prefix != "" ? "https://${var.amplify_custom_domain_prefix}.${var.amplify_custom_domain_name}" : "https://${var.amplify_custom_domain_name}"
+  ) : ""
   allowed_workflow_refs = [
     "${var.github_repo}/.github/workflows/deploy-backend.yml@*",
     "${var.github_repo}/.github/workflows/deploy-dev.yml@*",
@@ -29,6 +32,9 @@ module "lambda" {
   environment          = var.environment
   dynamodb_table_arn   = module.dynamodb.table_arn
   dynamodb_table_name  = module.dynamodb.table_name
+  amplify_branch       = var.github_branch
+  custom_domain_url    = local.amplify_custom_domain_url
+  cors_allowed_origins = var.cors_additional_allowed_origins
   reserved_concurrency = var.lambda_reserved_concurrency
   log_retention_days   = var.cloudwatch_log_retention_days
 }

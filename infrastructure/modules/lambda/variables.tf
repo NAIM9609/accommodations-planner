@@ -14,6 +14,23 @@ variable "dynamodb_table_name" {
   type = string
 }
 
+variable "amplify_branch" {
+  description = "Amplify branch used to build frontend (used for dynamic CORS allowlist pattern)"
+  type        = string
+}
+
+variable "custom_domain_url" {
+  description = "Amplify custom domain URL to include in CORS allowlist"
+  type        = string
+  default     = ""
+}
+
+variable "cors_allowed_origins" {
+  description = "Additional exact origins allowed for CORS"
+  type        = list(string)
+  default     = []
+}
+
 variable "reserved_concurrency" {
   description = "Reserved concurrency for Lambda functions. Use -1 for unreserved (default)."
   type        = number

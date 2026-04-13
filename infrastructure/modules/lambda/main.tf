@@ -51,7 +51,10 @@ resource "aws_lambda_function" "health" {
 
   environment {
     variables = {
-      ENVIRONMENT = var.environment
+      ENVIRONMENT          = var.environment
+      AMPLIFY_BRANCH       = var.amplify_branch
+      CUSTOM_DOMAIN_URL    = var.custom_domain_url
+      CORS_ALLOWED_ORIGINS = join(",", var.cors_allowed_origins)
     }
   }
 
@@ -74,8 +77,11 @@ resource "aws_lambda_function" "reservations" {
 
   environment {
     variables = {
-      ENVIRONMENT         = var.environment
-      DYNAMODB_TABLE_NAME = var.dynamodb_table_name
+      ENVIRONMENT          = var.environment
+      DYNAMODB_TABLE_NAME  = var.dynamodb_table_name
+      AMPLIFY_BRANCH       = var.amplify_branch
+      CUSTOM_DOMAIN_URL    = var.custom_domain_url
+      CORS_ALLOWED_ORIGINS = join(",", var.cors_allowed_origins)
     }
   }
 

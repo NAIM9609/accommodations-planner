@@ -87,6 +87,12 @@ variable "api_throttle_burst_limit" {
   default     = 10
 }
 
+variable "cors_additional_allowed_origins" {
+  description = "Additional exact origins allowed for CORS (for example: https://app.example.com)"
+  type        = list(string)
+  default     = []
+}
+
 variable "amplify_github_token" {
   description = "GitHub personal access token for Amplify (stored in GitHub Actions secret AMPLIFY_GITHUB_TOKEN)"
   type        = string
