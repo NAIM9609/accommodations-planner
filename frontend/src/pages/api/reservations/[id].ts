@@ -1,16 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-
-// Backend API URL must be set via environment variables
-const BACKEND_URL = process.env.BACKEND_API_URL;
+import { handleProxyError, JSON_HEADERS, requireBackendUrl } from '../../../lib/backendProxy';
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  if (!BACKEND_URL) {
-    console.error('BACKEND_API_URL environment variable is not set');
-    return res.status(500).json({ error: 'Server misconfiguration: BACKEND_API_URL is not set' });
-  }
+  const backendUrl = requireBackendUrl(res, {
+    error: 'Server misconfiguration: BACKEND_API_URL is not set',
+  });
+  if (!backendUrl) return;
 
   const { id } = req.query;
 
@@ -21,11 +19,9 @@ export default async function handler(
       }
 
       // DELETE /api/reservations/[id] - delete a specific reservation
-      const response = await fetch(`${BACKEND_URL}/reservations/${id}`, {
+      const response = await fetch(`${backendUrl}/reservations/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: JSON_HEADERS,
       });
 
       if (!response.ok) {
@@ -37,7 +33,6 @@ export default async function handler(
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
-    console.error('API Proxy Error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return handleProxyError(res, error, { error: 'Internal server error' });
   }
 }

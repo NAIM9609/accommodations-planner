@@ -242,17 +242,6 @@ body {
   }
 }
 
-/* ── Utility: full-width button on mobile ───────────────────── */
-.btn-full-mobile {
-  width: 100%;
-}
-
-@media (min-width: 600px) {
-  .btn-full-mobile {
-    width: auto;
-  }
-}
-
 /* ── Animations: respect reduced-motion preference ─────────── */
 @media (prefers-reduced-motion: no-preference) {
   .hero__cta {
