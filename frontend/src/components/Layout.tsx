@@ -69,7 +69,7 @@ export default function Layout({ children }: LayoutProps) {
           <p style={{ margin: '0 0 8px', color: 'white', fontWeight: 600 }}>🏡 Maple Grove B&amp;B</p>
           <p style={{ margin: '0 0 8px', fontSize: '0.9rem' }}>123 Maple Lane, Greenwood Valley · (555) 867-5309</p>
           <p style={{ margin: 0, fontSize: '0.8rem' }}>
-            © {new Date().getFullYear()} Maple Grove B&amp;B. All rights reserved.
+            © <span suppressHydrationWarning>{new Date().getFullYear()}</span> Maple Grove B&amp;B. All rights reserved.
           </p>
         </footer>
       </div>
