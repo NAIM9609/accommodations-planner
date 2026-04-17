@@ -37,4 +37,4 @@ jobs:
         run: terraform init -backend=false
 
       - name: Terraform validate
-        run: terraform validate
+        run: terraform validate -var-file=local.tfvars
