@@ -2,6 +2,16 @@ name: Deploy Dev Infra
 
 on:
   workflow_dispatch:
+    inputs:
+      delete_and_recreate:
+        description: >-
+          If true, plan/apply replace module.lambda, module.api_gateway, and module.amplify (not DynamoDB). Use only when you intend to recreate those stacks.
+        type: boolean
+        default: false
+      import_existing_resources:
+        description: Run the import script before plan (recommended when resources may already exist in AWS).
+        type: boolean
+        default: true
   push:
     branches: [master]
     paths:
@@ -50,6 +60,8 @@ jobs:
       prefix: accommodations-planner-dev
       backend_key: dev.tfstate
       tfvars_file: ''
+      delete_and_recreate: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.delete_and_recreate == 'true' }}
+      import_existing_resources: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.import_existing_resources != 'false' }}
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

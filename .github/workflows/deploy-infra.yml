@@ -20,6 +20,28 @@ on:
         required: false
         type: string
         default: ''
+      import_existing_resources:
+        description: Run import script so existing AWS resources are tracked in state (avoids duplicate creates).
+        required: false
+        type: boolean
+        default: true
+      delete_and_recreate:
+        description: >-
+          If true, plan/apply use -replace for module.lambda, module.api_gateway, and module.amplify (not DynamoDB).
+          Use only when you intend to tear down and recreate those stacks. Requires manual workflow run; ignored on push.
+        required: false
+        type: boolean
+        default: false
+      import_lock_timeout:
+        description: Terraform -lock-timeout for each import (shorter = fail fast if state is locked elsewhere).
+        required: false
+        type: string
+        default: '45s'
+      plan_apply_lock_timeout:
+        description: Terraform -lock-timeout for plan and apply.
+        required: false
+        type: string
+        default: '2m'
     secrets:
       AWS_ACCESS_KEY_ID:
         required: true
@@ -67,15 +89,23 @@ jobs:
       - name: Select workspace
         run: terraform workspace select -or-create ${{ inputs.environment }}
 
+      - name: Replace mode (audit)
+        if: ${{ inputs.delete_and_recreate == true }}
+        run: |
+          echo "delete_and_recreate=true: plan/apply will pass -replace for module.lambda, module.api_gateway, module.amplify (DynamoDB unchanged)."
+
       - name: Import existing resources into state
+        if: ${{ inputs.import_existing_resources }}
         env:
           TF_INPUT: "0"
           TF_VAR_environment: ${{ inputs.environment }}
           TF_VAR_aws_region: ${{ secrets.DEPLOY_AWS_REGION }}
           TF_VAR_amplify_github_token: ${{ secrets.AMPLIFY_GITHUB_TOKEN }}
-        run: bash ../.github/scripts/terraform-import-existing.sh "${{ inputs.prefix }}" "${{ secrets.DEPLOY_AWS_REGION }}" "5m"
+        run: bash ../.github/scripts/terraform-import-existing.sh "${{ inputs.prefix }}" "${{ secrets.DEPLOY_AWS_REGION }}" "${{ inputs.import_lock_timeout }}"
 
       - name: Terraform plan
+        env:
+          TF_REPLACE_ARGS: ${{ inputs.delete_and_recreate == true && '-replace=module.lambda -replace=module.api_gateway -replace=module.amplify' || '' }}
         run: |
           set -euo pipefail
           TFVARS_ARG=""
@@ -84,12 +114,15 @@ jobs:
           fi
           terraform plan \
             ${TFVARS_ARG} \
-            -lock-timeout=5m \
+            -lock-timeout=${{ inputs.plan_apply_lock_timeout }} \
+            ${TF_REPLACE_ARGS} \
             -var="environment=${{ inputs.environment }}" \
             -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" \
             -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
 
       - name: Terraform apply
+        env:
+          TF_REPLACE_ARGS: ${{ inputs.delete_and_recreate == true && '-replace=module.lambda -replace=module.api_gateway -replace=module.amplify' || '' }}
         run: |
           set -euo pipefail
           TFVARS_ARG=""
@@ -99,7 +132,8 @@ jobs:
           terraform apply \
             -auto-approve \
             ${TFVARS_ARG} \
-            -lock-timeout=5m \
+            -lock-timeout=${{ inputs.plan_apply_lock_timeout }} \
+            ${TF_REPLACE_ARGS} \
             -var="environment=${{ inputs.environment }}" \
             -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" \
             -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
