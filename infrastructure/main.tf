@@ -70,11 +70,17 @@ module "amplify" {
 # GitHub OIDC provider for CI/CD (one-per-AWS-account).
 # Set create_github_oidc_provider = true only when bootstrapping a fresh account.
 # Defaults to false to avoid EntityAlreadyExists errors on subsequent applies.
+# If older state already manages this provider, migrate state before switching modes
+# (for example with `terraform state mv` or `terraform state rm`) to avoid a destroy plan.
 resource "aws_iam_openid_connect_provider" "github" {
   count           = var.create_github_oidc_provider ? 1 : 0
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1", "1c58a3a8518e8759bf075b76b750d4f2df264fcd"]
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Look up the existing OIDC provider when not managing it here.
