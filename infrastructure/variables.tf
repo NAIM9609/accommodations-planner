@@ -106,7 +106,11 @@ variable "allow_dynamodb_destroy" {
 }
 
 variable "create_github_oidc_provider" {
-  description = "Create the GitHub Actions OIDC provider. The provider is one-per-AWS-account, so set this to false (the default) if the provider already exists. When false, a data source is used to look up the existing provider ARN."
+  description = "Create the GitHub Actions OIDC provider. This provider is one-per-AWS-account and should be created exactly once from the dev bootstrap state/environment. For a fresh account bootstrap, run Terraform with -var=\"environment=dev\" -var=\"create_github_oidc_provider=true\". After that one-time creation, leave this as false (the default) so Terraform looks up the existing provider ARN with a data source instead of trying to recreate it from other states/environments."
   type        = bool
   default     = false
+  validation {
+    condition     = !var.create_github_oidc_provider || var.environment == "dev"
+    error_message = "create_github_oidc_provider may only be true for the dev bootstrap state/environment. For first-time account bootstrap, run Terraform with -var=\"environment=dev\" -var=\"create_github_oidc_provider=true\"."
+  }
 }
