@@ -1,123 +1,185 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import Layout from '../components/Layout';
+import { BRAND } from '../lib/brand';
 
 function HomePage(): JSX.Element {
+  const suites = [
+    {
+      name: 'Garden Terrace Room',
+      rate: 'From $289 / night',
+      desc: 'A quiet retreat with private terrace seating, handcrafted linens, and morning light over the orchard.',
+      tone: 'room-card room-card--sand',
+    },
+    {
+      name: 'Sea Horizon Suite',
+      rate: 'From $429 / night',
+      desc: 'Expansive indoor-outdoor living with panoramic bay views, marble bath, and curated welcome amenities.',
+      tone: 'room-card room-card--slate',
+    },
+    {
+      name: 'Grand Villa Residence',
+      rate: 'From $690 / night',
+      desc: 'A private residence experience with dedicated host service, sunset lounge deck, and chef breakfast.',
+      tone: 'room-card room-card--olive',
+    },
+  ];
+
+  const experiences = [
+    {
+      title: 'Sunset Coastal Cruise',
+      detail: '3 hours',
+      blurb: 'Sail the cliffline at golden hour with a sommelier-led tasting of local sparkling wines.',
+    },
+    {
+      title: 'Volcanic Vineyard Journey',
+      detail: 'Half day',
+      blurb: 'Travel into the highlands for cellar tours, chef-paired lunch, and views over ancient terraces.',
+    },
+    {
+      title: 'Cinema & Heritage Walk',
+      detail: '4 hours',
+      blurb: 'Discover storied piazzas and iconic filming landmarks with a private cultural concierge.',
+    },
+  ];
+
   return (
     <Layout>
       <Head>
-        <title>Maple Grove B&B - Your Home Away From Home</title>
-        <meta name="description" content="Welcome to Maple Grove Bed & Breakfast" />
+        <title>{BRAND.fullName}</title>
+        <meta
+          name="description"
+          content="A refined coastal retreat with curated suites, signature experiences, and elevated dining."
+        />
       </Head>
 
-      {/* Hero — mobile-first via .hero, .hero__title, .hero__subtitle, .hero__cta */}
-      <section className="hero">
-        <h1 className="hero__title">
-          🏡 Maple Grove B&B
-        </h1>
-        <p className="hero__subtitle">
-          Experience the warmth and comfort of our charming bed &amp; breakfast nestled in the heart of nature.
-        </p>
-        <Link href="/reservations" className="hero__cta">
-          Book Your Stay →
-        </Link>
-      </section>
-
-      {/* Features — .feature-grid: 1 col → 2 col → 4 col */}
-      <section className="section-inner">
-        <h2 className="section-title">Why Choose Us?</h2>
-        <div className="feature-grid">
-          {[
-            { icon: '🛏️', title: 'Cozy Rooms', desc: 'Hand-crafted furnishings, plush bedding, and stunning views to make every night restful.' },
-            { icon: '🍳', title: 'Homemade Breakfast', desc: 'Start your day with a freshly prepared breakfast featuring local seasonal ingredients.' },
-            { icon: '🌲', title: 'Nature Surroundings', desc: 'Peaceful trails, fresh air, and wildlife right at your doorstep.' },
-            { icon: '📍', title: 'Prime Location', desc: 'Minutes from local attractions, restaurants, and historic landmarks.' },
-          ].map(f => (
-            <div key={f.title} style={{
-              background: 'white',
-              borderRadius: '12px',
-              padding: '24px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-              textAlign: 'center',
-            }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: '16px' }}>{f.icon}</div>
-              <h3 style={{ marginBottom: '12px', color: '#444', fontSize: '1.2rem' }}>{f.title}</h3>
-              <p style={{ color: '#666', lineHeight: 1.6, margin: 0 }}>{f.desc}</p>
-            </div>
-          ))}
+      <section className="lux-hero" aria-labelledby="lux-hero-title">
+        <div className="lux-hero__veil" />
+        <div className="lux-hero__content">
+          <p className="lux-kicker">{BRAND.fullName}</p>
+          <h1 id="lux-hero-title" className="lux-hero__title">
+            Cliffside serenity with timeless Mediterranean soul
+          </h1>
+          <p className="lux-hero__subtitle">
+            Set high above the waterline, {BRAND.shortName} blends heritage architecture, botanical gardens, and modern
+            hospitality into one immersive stay.
+          </p>
+          <div className="lux-hero__actions">
+            <Link href="/reservations" className="lux-btn lux-btn--solid">
+              Check rates
+            </Link>
+            <a href="#discover" className="lux-btn lux-btn--ghost">
+              Explore the retreat
+            </a>
+          </div>
+        </div>
+        <div className="booking-strip" role="region" aria-label="Quick booking">
+          <div className="booking-strip__field">
+            <span className="booking-strip__label">Arrival</span>
+            <span className="booking-strip__value">Flexible dates</span>
+          </div>
+          <div className="booking-strip__field">
+            <span className="booking-strip__label">Departure</span>
+            <span className="booking-strip__value">Flexible dates</span>
+          </div>
+          <div className="booking-strip__field">
+            <span className="booking-strip__label">Guests</span>
+            <span className="booking-strip__value">2 adults</span>
+          </div>
+          <Link href="/reservations" className="booking-strip__cta">
+            Reserve now
+          </Link>
         </div>
       </section>
 
-      {/* Rooms — .room-grid: 1 col → 2 col → 3 col */}
-      <section style={{ background: '#f0f2f5', padding: '0' }}>
+      <section className="lux-intro section-inner" id="discover" aria-labelledby="discover-title">
+        <div className="lux-intro__copy">
+          <p className="lux-kicker">Unparalleled Stay</p>
+          <h2 id="discover-title" className="lux-heading">
+            A five-star hideaway designed for slow mornings and cinematic evenings
+          </h2>
+          <p>
+            Originally conceived as a hillside estate and now reimagined as a contemporary sanctuary, our retreat offers
+            sea-facing terraces, fragrant citrus courtyards, and personalized service that anticipates every detail.
+          </p>
+          <Link href="/reservations" className="lux-text-link">
+            Plan your itinerary
+          </Link>
+        </div>
+        <div className="lux-intro__visual" aria-hidden="true" />
+      </section>
+
+      <section className="lux-section lux-section--stone" aria-labelledby="accommodations-title">
         <div className="section-inner">
-          <h2 className="section-title">Our Rooms</h2>
-          <div className="room-grid">
-            {[
-              { name: 'Standard Room', price: '$89/night', desc: 'Comfortable and cozy, perfect for solo travelers or couples.', emoji: '🛏️' },
-              { name: 'Deluxe Room', price: '$129/night', desc: 'Spacious room with garden view and premium amenities.', emoji: '🌸' },
-              { name: 'Suite', price: '$189/night', desc: 'Our finest accommodation with panoramic views and a private sitting area.', emoji: '👑' },
-            ].map(room => (
-              <div key={room.name} style={{
-                background: 'white',
-                borderRadius: '12px',
-                overflow: 'hidden',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-              }}>
-                <div style={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  height: '140px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '3.5rem',
-                }}>
-                  {room.emoji}
-                </div>
-                <div style={{ padding: '20px' }}>
-                  <h3 style={{ margin: '0 0 8px', color: '#333' }}>{room.name}</h3>
-                  <p style={{ color: '#764ba2', fontWeight: 700, margin: '0 0 12px' }}>{room.price}</p>
-                  <p style={{ color: '#666', lineHeight: 1.6, margin: '0 0 20px' }}>{room.desc}</p>
-                  <Link href="/reservations" style={{
-                    display: 'inline-block',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    color: 'white',
-                    padding: '10px 24px',
-                    borderRadius: '6px',
-                    textDecoration: 'none',
-                    fontWeight: 600,
-                    minHeight: '44px',
-                    lineHeight: '24px',
-                  }}>
-                    Reserve Now
+          <p className="lux-kicker">Accommodations</p>
+          <h2 id="accommodations-title" className="lux-heading">Suites crafted for quiet luxury</h2>
+          <div className="lux-grid lux-grid--three">
+            {suites.map((suite) => (
+              <article key={suite.name} className={suite.tone}>
+                <div className="room-card__media" aria-hidden="true" />
+                <div className="room-card__body">
+                  <h3>{suite.name}</h3>
+                  <p className="room-card__rate">{suite.rate}</p>
+                  <p>{suite.desc}</p>
+                  <Link href="/reservations" className="lux-text-link">
+                    View room details
                   </Link>
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section style={{ padding: '48px 16px', textAlign: 'center' }}>
-        <h2 style={{ fontSize: 'clamp(1.4rem, 4vw, 2rem)', marginBottom: '16px', color: '#333' }}>Ready to Book?</h2>
-        <p style={{ color: '#666', marginBottom: '28px', fontSize: 'clamp(1rem, 2vw, 1.1rem)' }}>
-          Check availability and make your reservation today.
-        </p>
-        <Link href="/reservations" style={{
-          display: 'inline-block',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white',
-          padding: '14px 32px',
-          borderRadius: '30px',
-          textDecoration: 'none',
-          fontWeight: 700,
-          fontSize: 'clamp(0.95rem, 2vw, 1.1rem)',
-          minHeight: '48px',
-          lineHeight: '1.4',
-        }}>
-          View &amp; Make Reservations
-        </Link>
+      <section className="lux-section" aria-labelledby="experiences-title">
+        <div className="section-inner">
+          <p className="lux-kicker">Discover {BRAND.shortName}</p>
+          <h2 id="experiences-title" className="lux-heading">Curated experiences beyond the retreat</h2>
+          <div className="lux-grid lux-grid--three">
+            {experiences.map((item) => (
+              <article key={item.title} className="experience-card">
+                <p className="experience-card__detail">{item.detail}</p>
+                <h3>{item.title}</h3>
+                <p>{item.blurb}</p>
+                <Link href="/reservations" className="lux-text-link">
+                  Speak with concierge
+                </Link>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="lux-offers section-inner" aria-labelledby="offers-title">
+        <p className="lux-kicker">Featured Offers</p>
+        <h2 id="offers-title" className="lux-heading">Seasonal privileges for longer stays</h2>
+        <div className="lux-grid lux-grid--two">
+          <article className="offer-card">
+            <h3>Experience More Credit</h3>
+            <p>Receive a $220 resort credit to elevate your stay with wellness sessions, dining, or private excursions.</p>
+            <Link href="/reservations" className="lux-text-link">View offer terms</Link>
+          </article>
+          <article className="offer-card">
+            <h3>Suite Escape - 15% Off</h3>
+            <p>Stay three nights or more and enjoy preferred rates, daily breakfast, and expedited coastal transfers.</p>
+            <Link href="/reservations" className="lux-text-link">See availability</Link>
+          </article>
+        </div>
+      </section>
+
+      <section className="lux-spa" aria-labelledby="spa-title">
+        <div className="lux-spa__inner section-inner">
+          <div>
+            <p className="lux-kicker">Wellness Sanctuary</p>
+            <h2 id="spa-title" className="lux-heading">Restore at our botanical spa</h2>
+            <p>
+              Signature rituals draw on citrus oils, marine minerals, and thermal therapies to restore body and mind.
+            </p>
+          </div>
+          <Link href="/reservations" className="lux-btn lux-btn--solid">
+            Reserve your stay
+          </Link>
+        </div>
       </section>
     </Layout>
   );

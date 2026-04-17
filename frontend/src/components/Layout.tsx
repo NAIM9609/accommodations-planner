@@ -2,6 +2,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import type { ReactNode } from 'react';
+import { BRAND } from '../lib/brand';
 
 interface LayoutProps {
   children: ReactNode;
@@ -12,12 +13,12 @@ export default function Layout({ children }: LayoutProps) {
 
   const navLink = (href: string, label: string) => (
     <Link href={href} style={{
-      color: router.pathname === href ? '#764ba2' : '#555',
+      color: router.pathname === href ? '#1f3b35' : '#495a54',
       textDecoration: 'none',
       fontWeight: router.pathname === href ? 700 : 500,
       padding: '8px 16px',
       borderRadius: '6px',
-      background: router.pathname === href ? 'rgba(118, 75, 162, 0.08)' : 'transparent',
+      background: router.pathname === href ? 'rgba(179, 144, 82, 0.14)' : 'transparent',
       /* Minimum 48px touch target (WCAG 2.5.8) */
       minHeight: '44px',
       display: 'inline-flex',
@@ -37,16 +38,16 @@ export default function Layout({ children }: LayoutProps) {
         <a href="#main-content" className="skip-link">Skip to main content</a>
 
         <header style={{
-          background: 'white',
-          borderBottom: '1px solid #e9ecef',
+          background: '#fdf9f2',
+          borderBottom: '1px solid #e3d9c9',
           position: 'sticky',
           top: 0,
           zIndex: 100,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          boxShadow: '0 2px 10px rgba(31,38,35,0.05)',
         }}>
           <nav className="site-nav" aria-label="Main">
             <Link href="/" className="site-nav__logo">
-              🏡 Maple Grove B&amp;B
+              🏡 {BRAND.shortName}
             </Link>
             <div className="site-nav__links">
               {navLink('/', 'Home')}
@@ -60,16 +61,16 @@ export default function Layout({ children }: LayoutProps) {
         </main>
 
         <footer style={{
-          background: '#2d3748',
-          color: '#a0aec0',
+          background: '#1f2e2a',
+          color: '#d2dfd9',
           textAlign: 'center',
           padding: '32px 16px',
           marginTop: 'auto',
         }}>
-          <p style={{ margin: '0 0 8px', color: 'white', fontWeight: 600 }}>🏡 Maple Grove B&amp;B</p>
-          <p style={{ margin: '0 0 8px', fontSize: '0.9rem' }}>123 Maple Lane, Greenwood Valley · (555) 867-5309</p>
+          <p style={{ margin: '0 0 8px', color: 'white', fontWeight: 600 }}>🏡 {BRAND.shortName}</p>
+          <p style={{ margin: '0 0 8px', fontSize: '0.9rem' }}>{BRAND.locationLine} · {BRAND.phone}</p>
           <p style={{ margin: 0, fontSize: '0.8rem' }}>
-            © <span suppressHydrationWarning>{new Date().getFullYear()}</span> Maple Grove B&amp;B. All rights reserved.
+            © <span>{BRAND.copyrightYear}</span> {BRAND.shortName}. All rights reserved.
           </p>
         </footer>
       </div>

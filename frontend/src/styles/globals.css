@@ -17,10 +17,22 @@ html {
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #f8f9fa;
+  font-family: 'Avenir Next', Avenir, 'Segoe UI', sans-serif;
+  background: #f6f2ea;
+  color: #1f2623;
   /* Prevent horizontal overflow on mobile */
   overflow-x: hidden;
+}
+
+:root {
+  --lux-ink: #1f2623;
+  --lux-muted: #52625d;
+  --lux-sand: #f6f2ea;
+  --lux-surface: #fdfbf7;
+  --lux-forest: #223a34;
+  --lux-gold: #b39052;
+  --lux-line: #d8cec0;
+  --lux-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', serif;
 }
 
 /* ── Skip link (WCAG 2.4.1) ─────────────────────────────────── */
@@ -57,9 +69,11 @@ body {
 
 .site-nav__logo {
   text-decoration: none;
-  color: #333;
-  font-weight: 800;
+  color: var(--lux-ink);
+  font-weight: 700;
   font-size: 1rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -70,6 +84,329 @@ body {
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
+}
+
+.lux-kicker {
+  margin: 0 0 10px;
+  color: #6a746f;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.lux-heading {
+  margin: 0 0 14px;
+  font-family: var(--lux-serif);
+  font-size: clamp(1.7rem, 4.6vw, 3rem);
+  line-height: 1.12;
+  font-weight: 500;
+  color: var(--lux-ink);
+}
+
+.lux-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.lux-grid--three {
+  grid-template-columns: 1fr;
+}
+
+.lux-grid--two {
+  grid-template-columns: 1fr;
+}
+
+.lux-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  border-radius: 999px;
+  padding: 12px 22px;
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+
+.lux-btn--solid {
+  background: linear-gradient(135deg, #8f7541, #b39052);
+  color: #fff;
+}
+
+.lux-btn--ghost {
+  border-color: rgba(255, 255, 255, 0.7);
+  color: #fff;
+  backdrop-filter: blur(2px);
+}
+
+.lux-text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #5a6a64;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.lux-text-link::after {
+  content: '->';
+  transition: transform 0.25s ease;
+}
+
+.lux-hero {
+  position: relative;
+  min-height: min(92vh, 860px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 110px 16px 24px;
+  background:
+    radial-gradient(circle at 14% 16%, rgba(245, 208, 140, 0.26), transparent 42%),
+    radial-gradient(circle at 88% 12%, rgba(95, 142, 127, 0.26), transparent 39%),
+    linear-gradient(125deg, #1f3733 0%, #3e5f5d 44%, #7f9c9a 100%);
+  overflow: hidden;
+}
+
+.lux-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(21, 31, 28, 0.26), rgba(21, 31, 28, 0.62)),
+    repeating-linear-gradient(160deg, rgba(255, 255, 255, 0.025) 0, rgba(255, 255, 255, 0.025) 2px, transparent 2px, transparent 9px);
+}
+
+.lux-hero__veil {
+  position: absolute;
+  inset: auto -12% -54% -12%;
+  height: 66%;
+  background: radial-gradient(ellipse at center, rgba(11, 20, 19, 0.52), transparent 70%);
+}
+
+.lux-hero__content {
+  position: relative;
+  z-index: 2;
+  width: min(920px, 100%);
+  color: #fff;
+  text-align: left;
+}
+
+.lux-hero__title {
+  margin: 0;
+  font-family: var(--lux-serif);
+  font-size: clamp(2.2rem, 7.2vw, 5.2rem);
+  line-height: 0.98;
+  font-weight: 500;
+  max-width: 10.2em;
+}
+
+.lux-hero__subtitle {
+  margin: 18px 0 0;
+  max-width: 40rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: clamp(1rem, 2.4vw, 1.25rem);
+  line-height: 1.7;
+}
+
+.lux-hero__actions {
+  margin-top: 28px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.booking-strip {
+  width: min(980px, 100%);
+  position: relative;
+  z-index: 2;
+  margin-top: 26px;
+  background: rgba(255, 251, 244, 0.96);
+  border: 1px solid rgba(145, 126, 93, 0.36);
+  border-radius: 16px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.booking-strip__field {
+  border: 1px solid #e4dacb;
+  border-radius: 10px;
+  background: #fff;
+  min-height: 58px;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.booking-strip__label {
+  color: #8b7a62;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.booking-strip__value {
+  color: #2f332f;
+  font-weight: 600;
+}
+
+.booking-strip__cta {
+  min-height: 58px;
+  border-radius: 10px;
+  background: var(--lux-forest);
+  color: #fff;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.lux-intro {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  align-items: center;
+}
+
+.lux-intro__copy p {
+  color: var(--lux-muted);
+  line-height: 1.8;
+  margin: 0 0 14px;
+}
+
+.lux-intro__visual {
+  min-height: 280px;
+  border-radius: 18px;
+  background:
+    linear-gradient(155deg, rgba(23, 40, 36, 0.84), rgba(52, 83, 73, 0.6)),
+    radial-gradient(circle at 70% 23%, rgba(221, 193, 140, 0.44), transparent 52%),
+    linear-gradient(30deg, #718f8c, #294640);
+  box-shadow: 0 20px 44px rgba(36, 54, 49, 0.2);
+}
+
+.lux-section {
+  padding: 2px 0;
+}
+
+.lux-section--stone {
+  background: linear-gradient(180deg, #f0e8dc 0%, #f8f4ec 100%);
+}
+
+.room-card {
+  background: var(--lux-surface);
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #e6ddcf;
+}
+
+.room-card__media {
+  height: 180px;
+  background: linear-gradient(140deg, rgba(24, 45, 40, 0.75), rgba(158, 132, 78, 0.45));
+}
+
+.room-card__body {
+  padding: 20px;
+}
+
+.room-card__body h3 {
+  margin: 0;
+  font-family: var(--lux-serif);
+  font-size: 1.42rem;
+  font-weight: 500;
+}
+
+.room-card__rate {
+  margin: 10px 0 12px;
+  color: #7f6b4a;
+  font-weight: 700;
+}
+
+.room-card__body p {
+  margin: 0 0 14px;
+  color: #52625d;
+  line-height: 1.7;
+}
+
+.room-card--sand .room-card__media {
+  background: linear-gradient(150deg, #5a6f62, #c3ab78 62%, #f2dfbf);
+}
+
+.room-card--slate .room-card__media {
+  background: linear-gradient(150deg, #20393a, #6b8c8f 62%, #ced9d7);
+}
+
+.room-card--olive .room-card__media {
+  background: linear-gradient(150deg, #2f4137, #7f8f6e 58%, #d8c49f);
+}
+
+.experience-card,
+.offer-card {
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #e7ddcf;
+  padding: 20px;
+}
+
+.experience-card__detail {
+  margin: 0;
+  color: #8b7a62;
+  text-transform: uppercase;
+  font-size: 0.76rem;
+  letter-spacing: 0.11em;
+  font-weight: 700;
+}
+
+.experience-card h3,
+.offer-card h3 {
+  margin: 12px 0;
+  font-family: var(--lux-serif);
+  font-size: 1.36rem;
+  font-weight: 500;
+  color: #242d28;
+}
+
+.experience-card p,
+.offer-card p {
+  margin: 0 0 12px;
+  color: #55645e;
+  line-height: 1.75;
+}
+
+.lux-spa {
+  margin: 10px 0 28px;
+}
+
+.lux-spa__inner {
+  border-radius: 20px;
+  border: 1px solid #cab791;
+  background:
+    radial-gradient(circle at 86% 20%, rgba(247, 224, 180, 0.36), transparent 40%),
+    linear-gradient(145deg, #203832 0%, #2c4b43 40%, #466e64 100%);
+  color: #fff;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  align-items: center;
+}
+
+.lux-spa__inner .lux-kicker {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.lux-spa__inner .lux-heading {
+  color: #fff;
+}
+
+.lux-spa__inner p {
+  margin: 0;
+  line-height: 1.75;
+  color: rgba(255, 255, 255, 0.86);
 }
 
 /* ── Hero section ───────────────────────────────────────────── */
@@ -138,6 +475,14 @@ body {
 }
 
 @media (min-width: 600px) {
+  .lux-grid--two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .booking-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .feature-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -147,6 +492,29 @@ body {
 }
 
 @media (min-width: 900px) {
+  .lux-grid--three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .booking-strip {
+    grid-template-columns: 1.1fr 1.1fr 1fr auto;
+    align-items: center;
+  }
+
+  .booking-strip__cta {
+    min-width: 180px;
+    min-height: 100%;
+  }
+
+  .lux-intro {
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+  }
+
+  .lux-spa__inner {
+    grid-template-columns: 1.6fr auto;
+  }
+
   .feature-grid {
     grid-template-columns: repeat(4, 1fr);
   }
@@ -171,50 +539,208 @@ body {
 }
 
 /* ── Reservations page ──────────────────────────────────────── */
-.reservations-header {
+.reservations-page {
+  max-width: 1020px;
+}
+
+.page-section-header {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+}
+
+.page-section-header__title {
+  margin-bottom: 10px;
+}
+
+.page-section-header__subtitle {
+  margin: 0;
+  color: var(--lux-muted);
+  line-height: 1.7;
+  max-width: 58ch;
 }
 
 .reservations-new-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #8f7541, #b39052);
   color: white;
-  border: none;
+  border: 1px solid transparent;
   padding: 12px 20px;
-  border-radius: 8px;
+  border-radius: 999px;
   cursor: pointer;
-  font-weight: 600;
-  font-size: 1rem;
-  /* Touch-friendly */
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
   min-height: 48px;
-  align-self: flex-start;
+  width: 100%;
+  justify-content: center;
+  align-self: stretch;
+}
+
+.reservation-form-panel {
+  background: #fff;
+  border: 1px solid #e7ddcf;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.reservation-form-panel__title {
+  margin: 0 0 20px;
+  color: var(--lux-ink);
+  font-size: clamp(1.2rem, 2.5vw, 1.5rem);
+  font-family: var(--lux-serif);
+  font-weight: 500;
+}
+
+.notice {
+  margin-bottom: 18px;
+  border-radius: 10px;
+  padding: 14px 16px;
+  border: 1px solid;
+}
+
+.notice--warning {
+  background: #fff7e8;
+  border-color: #dec28c;
+  color: #6c5630;
+}
+
+.notice__label {
+  font-weight: 700;
+}
+
+.status-panel {
+  text-align: center;
+  padding: 42px 20px;
+  background: #fff;
+  border: 1px solid #ece2d6;
+  border-radius: 16px;
+}
+
+.status-panel__icon {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.status-panel__title {
+  margin: 12px 0 8px;
+  font-family: var(--lux-serif);
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: #25302a;
+}
+
+.status-panel__description {
+  margin: 0;
+  color: #5a6963;
+  line-height: 1.7;
+}
+
+.reservation-list {
+  display: grid;
+  gap: 14px;
 }
 
 @media (min-width: 600px) {
-  .reservations-header {
+  .page-section-header {
     flex-direction: row;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 32px;
+    align-items: flex-end;
+    margin-bottom: 34px;
+  }
+
+  .page-section-header__action {
+    align-self: auto;
+  }
+
+  .reservations-new-btn {
+    width: auto;
+    align-self: flex-start;
+  }
+
+  .reservation-form-panel {
+    padding: 28px;
   }
 }
 
 /* Reservation card: single column info + action stacked on mobile */
 .reservation-card {
-  background: white;
-  border-radius: 12px;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #e8dfd2;
   padding: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
+.reservation-card--luxury .reservation-card__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.reservation-card--luxury h3 {
+  margin: 0;
+  font-family: var(--lux-serif);
+  color: #25302a;
+  font-weight: 500;
+  font-size: 1.3rem;
+}
+
+.reservation-card__line {
+  margin: 0 0 6px;
+  color: #52625d;
+  line-height: 1.6;
+}
+
+.reservation-card__meta {
+  margin: 0;
+  color: #7a877f;
+  font-size: 0.84rem;
+  overflow-wrap: anywhere;
+}
+
+.reservation-badge {
+  border-radius: 999px;
+  padding: 4px 11px;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.reservation-badge--standard {
+  background: #51645f;
+}
+
+.reservation-badge--deluxe {
+  background: #2f5f63;
+}
+
+.reservation-badge--suite {
+  background: #79603b;
+}
+
 .reservation-card__actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: stretch;
+}
+
+.reservation-cancel-btn {
+  min-height: 42px;
+  border-radius: 8px;
+  border: 1px solid #b95757;
+  background: #fff;
+  color: #a03f3f;
+  font-weight: 600;
+  padding: 9px 14px;
+  cursor: pointer;
+  width: 100%;
 }
 
 @media (min-width: 600px) {
@@ -226,13 +752,76 @@ body {
   .reservation-card__info {
     flex: 1;
   }
+
+  .reservation-card__actions {
+    justify-content: flex-end;
+  }
+
+  .reservation-cancel-btn {
+    width: auto;
+  }
 }
 
 /* ── Reservation form ───────────────────────────────────────── */
 .form-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0;
+  gap: 0 18px;
+}
+
+.reservation-form__field {
+  margin-bottom: 18px;
+}
+
+.reservation-form__label {
+  display: block;
+  margin-bottom: 6px;
+  color: #46554f;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.reservation-form__input {
+  width: 100%;
+  border-radius: 9px;
+  border: 1px solid #d8cdc0;
+  background: #fff;
+  min-height: 45px;
+  padding: 10px 12px;
+  font-size: 0.98rem;
+  color: #2f3b36;
+}
+
+.reservation-form__input:focus-visible {
+  outline: 2px solid #3a6764;
+  outline-offset: 1px;
+}
+
+.reservation-form__input--error {
+  border-color: #bc6464;
+}
+
+.reservation-form__error {
+  margin: 5px 0 0;
+  color: #b44848;
+  font-size: 0.8rem;
+}
+
+.reservation-form__submit {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 700;
+  font-size: 0.97rem;
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(135deg, #264742, #3c6a60);
+}
+
+.reservation-form__submit--disabled {
+  background: #8ea09a;
+  cursor: not-allowed;
 }
 
 @media (min-width: 600px) {
@@ -244,6 +833,36 @@ body {
 
 /* ── Animations: respect reduced-motion preference ─────────── */
 @media (prefers-reduced-motion: no-preference) {
+  .lux-btn,
+  .booking-strip__cta,
+  .room-card,
+  .experience-card,
+  .offer-card,
+  .reservations-new-btn,
+  .reservation-cancel-btn,
+  .reservation-card {
+    transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
+  }
+
+  .lux-btn:hover,
+  .booking-strip__cta:hover,
+  .reservations-new-btn:hover,
+  .reservation-cancel-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .room-card:hover,
+  .experience-card:hover,
+  .offer-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 24px rgba(42, 50, 47, 0.12);
+    border-color: #ccb789;
+  }
+
+  .lux-text-link:hover::after {
+    transform: translateX(3px);
+  }
+
   .hero__cta {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
