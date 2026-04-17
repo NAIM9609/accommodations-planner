@@ -69,7 +69,12 @@ jobs:
         with:
           terraform_version: '1.7.5'
 
-      - run: terraform init
+        - run: terraform init \
+          -backend-config="bucket=accommodations-planner-tf-state" \
+          -backend-config="key=accommodations-planner/dev.tfstate" \
+          -backend-config="region=${{ secrets.DEPLOY_AWS_REGION }}" \
+          -backend-config="dynamodb_table=accommodations-planner-tf-lock" \
+          -backend-config="encrypt=true"
       - run: terraform workspace select -or-create dev
       - run: terraform plan -var="environment=dev" -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
       - run: terraform apply -auto-approve -var="environment=dev" -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
