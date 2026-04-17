@@ -70,6 +70,11 @@ jobs:
             -backend-config="encrypt=true"
       - run: terraform workspace select -or-create dev
       - name: Import existing resources into state (dev)
+        env:
+          TF_INPUT: "0"
+          TF_VAR_environment: dev
+          TF_VAR_aws_region: ${{ secrets.DEPLOY_AWS_REGION }}
+          TF_VAR_amplify_github_token: ${{ secrets.AMPLIFY_GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
