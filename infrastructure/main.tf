@@ -6,8 +6,12 @@ locals {
   ) : ""
   allowed_workflow_refs = [
     "${var.github_repo}/.github/workflows/deploy-backend.yml@*",
-    "${var.github_repo}/.github/workflows/deploy-dev.yml@*",
-    "${var.github_repo}/.github/workflows/deploy-prod.yml@*",
+    "${var.github_repo}/.github/workflows/deploy-dev-backend.yml@*",
+    "${var.github_repo}/.github/workflows/deploy-dev-frontend.yml@*",
+    "${var.github_repo}/.github/workflows/deploy-dev-infra.yml@*",
+    "${var.github_repo}/.github/workflows/deploy-prod-backend.yml@*",
+    "${var.github_repo}/.github/workflows/deploy-prod-frontend.yml@*",
+    "${var.github_repo}/.github/workflows/deploy-prod-infra.yml@*",
   ]
   # Resolve the GitHub OIDC provider ARN from whichever source is active.
   github_oidc_provider_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github[0].arn

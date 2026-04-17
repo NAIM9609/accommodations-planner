@@ -6,11 +6,6 @@ on:
       confirm:
         description: 'Type "deploy-prod" to confirm production deployment'
         required: true
-  push:
-    branches: [master]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/deploy-prod-frontend.yml'
 
 concurrency:
   group: deploy-prod-frontend
