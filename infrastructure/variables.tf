@@ -104,3 +104,9 @@ variable "allow_dynamodb_destroy" {
   type        = bool
   default     = false
 }
+
+variable "create_github_oidc_provider" {
+  description = "Create the GitHub Actions OIDC provider. The provider is one-per-AWS-account, so set this to false (the default) if the provider already exists. When false, a data source is used to look up the existing provider ARN."
+  type        = bool
+  default     = false
+}
