@@ -22,6 +22,13 @@ check "amplify_custom_domain_requires_name" {
   }
 }
 
+check "oidc_provider_dev_only" {
+  assert {
+    condition     = !var.create_github_oidc_provider || var.environment == "dev"
+    error_message = "create_github_oidc_provider may only be true for the dev bootstrap state/environment. For first-time account bootstrap, run Terraform with -var=\"environment=dev\" -var=\"create_github_oidc_provider=true\"."
+  }
+}
+
 module "dynamodb" {
   source      = "./modules/dynamodb"
   table_name  = "${local.prefix}-reservations"
