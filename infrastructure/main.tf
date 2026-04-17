@@ -30,9 +30,9 @@ check "oidc_provider_dev_only" {
 }
 
 module "dynamodb" {
-  source      = "./modules/dynamodb"
-  table_name  = "${local.prefix}-reservations"
-  environment = var.environment
+  source              = "./modules/dynamodb"
+  table_name          = "${local.prefix}-reservations"
+  environment         = var.environment
   allow_table_destroy = var.allow_dynamodb_destroy
 }
 

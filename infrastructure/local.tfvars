@@ -13,8 +13,8 @@
 # tflocal automatically overrides all AWS provider endpoints to point at
 # LocalStack (http://localhost:14566) — no provider changes needed.
 
-aws_region  = "us-east-1"
-environment = "dev"
+aws_region             = "us-east-1"
+environment            = "dev"
 allow_dynamodb_destroy = false
 # Amplify is not available in LocalStack Community; use -target to skip it.
 # The value below is a placeholder so terraform doesn't error on the variable.
