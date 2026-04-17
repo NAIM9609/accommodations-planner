@@ -1,0 +1,49 @@
+name: Deploy Dev Backend
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-dev-backend.yml'
+      - '.github/workflows/deploy-backend.yml'
+
+concurrency:
+  group: deploy-dev-backend
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate-deploy-secrets-dev:
+    name: Validate Deploy Secrets (Dev)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure required secrets are present
+        run: |
+          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
+            echo "Missing required secret: AWS_ACCESS_KEY_ID"
+            exit 1
+          fi
+          if [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
+            echo "Missing required secret: AWS_SECRET_ACCESS_KEY"
+            exit 1
+          fi
+          if [ -z "${{ secrets.DEPLOY_AWS_REGION }}" ]; then
+            echo "Missing required secret: DEPLOY_AWS_REGION"
+            exit 1
+          fi
+
+  deploy-backend-dev:
+    name: Deploy Backend to Dev
+    needs: [validate-deploy-secrets-dev]
+    uses: ./.github/workflows/deploy-backend.yml
+    with:
+      environment: dev
+      prefix: accommodations-planner-dev
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      DEPLOY_AWS_REGION: ${{ secrets.DEPLOY_AWS_REGION }}

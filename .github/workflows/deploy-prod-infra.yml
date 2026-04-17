@@ -1,4 +1,4 @@
-name: Deploy Prod
+name: Deploy Prod Infra
 
 on:
   workflow_dispatch:
@@ -6,9 +6,14 @@ on:
       confirm:
         description: 'Type "deploy-prod" to confirm production deployment'
         required: true
+  push:
+    branches: [master]
+    paths:
+      - 'infrastructure/**'
+      - '.github/workflows/deploy-prod-infra.yml'
 
 concurrency:
-  group: deploy-prod
+  group: deploy-prod-infra
   cancel-in-progress: false
 
 permissions:
@@ -20,15 +25,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check confirmation
-        if: ${{ github.event.inputs.confirm != 'deploy-prod' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.confirm != 'deploy-prod' }}
         run: |
           echo "Confirmation text did not match. Aborting."
-          exit 1
-
-      - name: Enforce master branch for prod
-        if: ${{ github.ref != 'refs/heads/master' }}
-        run: |
-          echo "Production deploys are allowed only from master. Current ref: ${{ github.ref }}"
           exit 1
 
   validate-deploy-secrets-prod:
@@ -55,21 +54,9 @@ jobs:
             exit 1
           fi
 
-  deploy-backend-prod:
-    name: Deploy Backend to Prod
-    needs: [validate-input, validate-deploy-secrets-prod, deploy-infra-prod]
-    uses: ./.github/workflows/deploy-backend.yml
-    with:
-      environment: prod
-      prefix: accommodations-planner-prod
-    secrets:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      DEPLOY_AWS_REGION: ${{ secrets.DEPLOY_AWS_REGION }}
-
   deploy-infra-prod:
     name: Terraform Apply Prod
-    needs: [validate-input, validate-deploy-secrets-prod]
+    needs: [validate-deploy-secrets-prod]
     runs-on: ubuntu-latest
     environment: prod
     defaults:
@@ -99,30 +86,3 @@ jobs:
       - run: terraform workspace select prod || terraform workspace new prod
       - run: terraform plan -var-file="prod.tfvars" -var="environment=prod" -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
       - run: terraform apply -auto-approve -var-file="prod.tfvars" -var="environment=prod" -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
-
-      - name: Trigger Amplify build
-        run: |
-          set -euo pipefail
-
-          APP_ID=$(terraform output -raw amplify_app_id 2>/dev/null || true)
-          if [ -z "$APP_ID" ]; then
-            echo "Could not read amplify_app_id from Terraform output; skipping Amplify build trigger."
-            exit 0
-          fi
-
-          BRANCH="master"
-          echo "Starting Amplify build for app $APP_ID on branch $BRANCH..."
-
-          set +e
-          start_output=$(aws amplify start-job --app-id "$APP_ID" --branch-name "$BRANCH" --job-type RELEASE 2>&1)
-          start_status=$?
-          set -e
-
-          if [ "$start_status" -ne 0 ]; then
-            echo "Amplify start-job was not started immediately (possibly another build is already active)."
-            echo "$start_output"
-            echo "Skipping without failing this production deployment workflow."
-            exit 0
-          fi
-
-          echo "$start_output"

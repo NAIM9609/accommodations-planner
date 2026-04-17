@@ -1,11 +1,15 @@
-name: Deploy Dev
+name: Deploy Dev Infra
 
 on:
+  workflow_dispatch:
   push:
     branches: [master]
+    paths:
+      - 'infrastructure/**'
+      - '.github/workflows/deploy-dev-infra.yml'
 
 concurrency:
-  group: deploy-dev
+  group: deploy-dev-infra
   cancel-in-progress: true
 
 permissions:
@@ -34,18 +38,6 @@ jobs:
             echo "Missing required secret: DEPLOY_AWS_REGION"
             exit 1
           fi
-
-  deploy-backend-dev:
-    name: Deploy Backend to Dev
-    needs: [validate-deploy-secrets-dev, deploy-infra-dev]
-    uses: ./.github/workflows/deploy-backend.yml
-    with:
-      environment: dev
-      prefix: accommodations-planner-dev
-    secrets:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      DEPLOY_AWS_REGION: ${{ secrets.DEPLOY_AWS_REGION }}
 
   deploy-infra-dev:
     name: Terraform Plan/Apply Dev
@@ -79,9 +71,3 @@ jobs:
       - run: terraform workspace select -or-create dev
       - run: terraform plan -var="environment=dev" -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
       - run: terraform apply -auto-approve -var="environment=dev" -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
-
-      - name: Amplify build trigger strategy
-        run: |
-          echo "Skipping manual Amplify trigger in dev."
-          echo "Reason: pushes to master already trigger Amplify branch builds automatically."
-

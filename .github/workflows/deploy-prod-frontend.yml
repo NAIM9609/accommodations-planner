@@ -1,0 +1,101 @@
+name: Deploy Prod Frontend
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy-prod" to confirm production deployment'
+        required: true
+  push:
+    branches: [master]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-prod-frontend.yml'
+
+concurrency:
+  group: deploy-prod-frontend
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate-input:
+    name: Validate Confirmation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check confirmation
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.confirm != 'deploy-prod' }}
+        run: |
+          echo "Confirmation text did not match. Aborting."
+          exit 1
+
+  validate-deploy-secrets-prod:
+    name: Validate Deploy Secrets (Prod)
+    needs: [validate-input]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure required secrets are present
+        run: |
+          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
+            echo "Missing required secret: AWS_ACCESS_KEY_ID"
+            exit 1
+          fi
+          if [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
+            echo "Missing required secret: AWS_SECRET_ACCESS_KEY"
+            exit 1
+          fi
+          if [ -z "${{ secrets.DEPLOY_AWS_REGION }}" ]; then
+            echo "Missing required secret: DEPLOY_AWS_REGION"
+            exit 1
+          fi
+
+  deploy-frontend-prod:
+    name: Trigger Frontend Build (Prod)
+    needs: [validate-deploy-secrets-prod]
+    runs-on: ubuntu-latest
+    environment: prod
+    defaults:
+      run:
+        working-directory: infrastructure
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.DEPLOY_AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.7.5'
+
+      - name: Read Amplify app id and trigger build
+        run: |
+          set -euo pipefail
+          terraform init \
+            -backend-config="bucket=accommodations-planner-tf-state" \
+            -backend-config="key=accommodations-planner/prod.tfstate" \
+            -backend-config="region=${{ secrets.DEPLOY_AWS_REGION }}" \
+            -backend-config="dynamodb_table=accommodations-planner-tf-lock" \
+            -backend-config="encrypt=true"
+          terraform workspace select prod || terraform workspace new prod
+          APP_ID=$(terraform output -raw amplify_app_id 2>/dev/null || true)
+          if [ -z "$APP_ID" ]; then
+            echo "Could not read amplify_app_id from Terraform output; skipping frontend trigger."
+            exit 0
+          fi
+          BRANCH="master"
+          set +e
+          start_output=$(aws amplify start-job --app-id "$APP_ID" --branch-name "$BRANCH" --job-type RELEASE 2>&1)
+          start_status=$?
+          set -e
+          if [ "$start_status" -ne 0 ]; then
+            echo "Amplify start-job was not started immediately (possibly another build is already active)."
+            echo "$start_output"
+            echo "Skipping without failing this workflow."
+            exit 0
+          fi
+          echo "$start_output"

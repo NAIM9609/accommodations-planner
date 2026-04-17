@@ -1,0 +1,64 @@
+name: Deploy Prod Backend
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy-prod" to confirm production deployment'
+        required: true
+  push:
+    branches: [master]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-prod-backend.yml'
+      - '.github/workflows/deploy-backend.yml'
+
+concurrency:
+  group: deploy-prod-backend
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate-input:
+    name: Validate Confirmation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check confirmation
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.confirm != 'deploy-prod' }}
+        run: |
+          echo "Confirmation text did not match. Aborting."
+          exit 1
+
+  validate-deploy-secrets-prod:
+    name: Validate Deploy Secrets (Prod)
+    needs: [validate-input]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure required secrets are present
+        run: |
+          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
+            echo "Missing required secret: AWS_ACCESS_KEY_ID"
+            exit 1
+          fi
+          if [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
+            echo "Missing required secret: AWS_SECRET_ACCESS_KEY"
+            exit 1
+          fi
+          if [ -z "${{ secrets.DEPLOY_AWS_REGION }}" ]; then
+            echo "Missing required secret: DEPLOY_AWS_REGION"
+            exit 1
+          fi
+
+  deploy-backend-prod:
+    name: Deploy Backend to Prod
+    needs: [validate-deploy-secrets-prod]
+    uses: ./.github/workflows/deploy-backend.yml
+    with:
+      environment: prod
+      prefix: accommodations-planner-prod
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      DEPLOY_AWS_REGION: ${{ secrets.DEPLOY_AWS_REGION }}
