@@ -1,0 +1,105 @@
+name: Deploy Infra (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Deployment environment (dev or prod)
+        required: true
+        type: string
+      prefix:
+        description: Resource prefix, e.g. accommodations-planner-dev
+        required: true
+        type: string
+      backend_key:
+        description: Backend state key suffix under accommodations-planner/
+        required: true
+        type: string
+      tfvars_file:
+        description: Optional tfvars filename in infrastructure directory
+        required: false
+        type: string
+        default: ''
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      DEPLOY_AWS_REGION:
+        required: true
+      AMPLIFY_GITHUB_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-infra:
+    name: Terraform Plan/Apply (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    defaults:
+      run:
+        working-directory: infrastructure
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.DEPLOY_AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.7.5'
+
+      - name: Terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=accommodations-planner-tf-state" \
+            -backend-config="key=accommodations-planner/${{ inputs.backend_key }}" \
+            -backend-config="region=${{ secrets.DEPLOY_AWS_REGION }}" \
+            -backend-config="dynamodb_table=accommodations-planner-tf-lock" \
+            -backend-config="encrypt=true"
+
+      - name: Select workspace
+        run: terraform workspace select -or-create ${{ inputs.environment }}
+
+      - name: Import existing resources into state
+        env:
+          TF_INPUT: "0"
+          TF_VAR_environment: ${{ inputs.environment }}
+          TF_VAR_aws_region: ${{ secrets.DEPLOY_AWS_REGION }}
+          TF_VAR_amplify_github_token: ${{ secrets.AMPLIFY_GITHUB_TOKEN }}
+        run: bash ../.github/scripts/terraform-import-existing.sh "${{ inputs.prefix }}" "${{ secrets.DEPLOY_AWS_REGION }}" "5m"
+
+      - name: Terraform plan
+        run: |
+          set -euo pipefail
+          TFVARS_ARG=""
+          if [ -n "${{ inputs.tfvars_file }}" ]; then
+            TFVARS_ARG="-var-file=${{ inputs.tfvars_file }}"
+          fi
+          terraform plan \
+            ${TFVARS_ARG} \
+            -lock-timeout=5m \
+            -var="environment=${{ inputs.environment }}" \
+            -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" \
+            -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
+
+      - name: Terraform apply
+        run: |
+          set -euo pipefail
+          TFVARS_ARG=""
+          if [ -n "${{ inputs.tfvars_file }}" ]; then
+            TFVARS_ARG="-var-file=${{ inputs.tfvars_file }}"
+          fi
+          terraform apply \
+            -auto-approve \
+            ${TFVARS_ARG} \
+            -lock-timeout=5m \
+            -var="environment=${{ inputs.environment }}" \
+            -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" \
+            -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
