@@ -80,6 +80,10 @@ resource "aws_iam_openid_connect_provider" "github" {
 
   lifecycle {
     prevent_destroy = true
+    precondition {
+      condition     = var.environment == "dev"
+      error_message = "create_github_oidc_provider may only be true for the dev bootstrap state/environment. For first-time account bootstrap, run Terraform with -var=\"environment=dev\" -var=\"create_github_oidc_provider=true\"."
+    }
   }
 }
 
