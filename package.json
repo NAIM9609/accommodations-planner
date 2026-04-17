@@ -9,6 +9,9 @@
     "dev": "npm run dev -w frontend",
     "build": "npm run build -w frontend",
     "start": "npm run start -w frontend",
+    "lint": "npm run lint -w frontend && npm run lint -w backend",
+    "lint:frontend": "npm run lint -w frontend",
+    "lint:backend": "npm run lint -w backend",
     "frontend": "npm run dev -w frontend",
     "backend:test": "npm run test -w backend"
   },
