@@ -13,6 +13,6 @@ resource "aws_dynamodb_table" "reservations" {
   }
 
   lifecycle {
-    prevent_destroy = !var.allow_table_destroy
+    prevent_destroy = true
   }
 }
