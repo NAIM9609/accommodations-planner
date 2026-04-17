@@ -89,7 +89,13 @@ jobs:
         with:
           terraform_version: '1.7.5'
 
-      - run: terraform init
+      - run: |
+          terraform init \
+            -backend-config="bucket=accommodations-planner-tf-state" \
+            -backend-config="key=accommodations-planner/prod.tfstate" \
+            -backend-config="region=${{ secrets.DEPLOY_AWS_REGION }}" \
+            -backend-config="dynamodb_table=accommodations-planner-tf-lock" \
+            -backend-config="encrypt=true"
       - run: terraform workspace select prod || terraform workspace new prod
       - run: terraform plan -var-file="prod.tfvars" -var="environment=prod" -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
       - run: terraform apply -auto-approve -var-file="prod.tfvars" -var="environment=prod" -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"

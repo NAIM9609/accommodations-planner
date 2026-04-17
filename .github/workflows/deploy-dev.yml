@@ -69,7 +69,7 @@ jobs:
         with:
           terraform_version: '1.7.5'
 
-        - run: terraform init \
+      - run: terraform init \
           -backend-config="bucket=accommodations-planner-tf-state" \
           -backend-config="key=accommodations-planner/dev.tfstate" \
           -backend-config="region=${{ secrets.DEPLOY_AWS_REGION }}" \
