@@ -155,6 +155,27 @@ jobs:
             echo "Stack deleted."
           fi
 
+      - name: Clean up orphaned IAM role from previous failed deploy
+        run: |
+          set -euo pipefail
+          ROLE_NAME="${STACK_NAME##accommodations-planner-}"
+          ROLE_NAME="accommodations-planner-${ROLE_NAME}-github-actions"
+          if aws iam get-role --role-name "$ROLE_NAME" >/dev/null 2>&1; then
+            echo "Found orphaned role: $ROLE_NAME — cleaning up..."
+            # Delete inline policies
+            for policy in $(aws iam list-role-policies --role-name "$ROLE_NAME" --query "PolicyNames[]" --output text); do
+              aws iam delete-role-policy --role-name "$ROLE_NAME" --policy-name "$policy"
+            done
+            # Detach managed policies
+            for arn in $(aws iam list-attached-role-policies --role-name "$ROLE_NAME" --query "AttachedPolicies[].PolicyArn" --output text); do
+              aws iam detach-role-policy --role-name "$ROLE_NAME" --policy-arn "$arn"
+            done
+            aws iam delete-role --role-name "$ROLE_NAME"
+            echo "Orphaned role deleted."
+          else
+            echo "No orphaned role found."
+          fi
+
       - name: Deploy CloudFormation stack
         run: |
           set -euo pipefail
@@ -168,6 +189,26 @@ jobs:
               Project=accommodations-planner \
               Environment=${{ inputs.environment }} \
               ManagedBy=cloudformation
+
+      - name: Show failure diagnostics
+        if: failure()
+        run: |
+          echo "=== Stack Events (last 30) ==="
+          aws cloudformation describe-stack-events \
+            --stack-name "${STACK_NAME}" \
+            --query "StackEvents[?ResourceStatus=='CREATE_FAILED' || ResourceStatus=='UPDATE_FAILED'].[LogicalResourceId,ResourceStatusReason]" \
+            --output table 2>/dev/null || true
+          # Check nested stacks
+          for nested_arn in $(aws cloudformation describe-stack-events \
+            --stack-name "${STACK_NAME}" \
+            --query "StackEvents[?ResourceStatus=='CREATE_FAILED' && ResourceType=='AWS::CloudFormation::Stack'].PhysicalResourceId" \
+            --output text 2>/dev/null || true); do
+            echo "=== Nested Stack Events: $nested_arn ==="
+            aws cloudformation describe-stack-events \
+              --stack-name "$nested_arn" \
+              --query "StackEvents[?ResourceStatus=='CREATE_FAILED'].[LogicalResourceId,ResourceStatusReason]" \
+              --output table 2>/dev/null || true
+          done
 
       - name: Validate CloudFormation outputs
         run: |
