@@ -13,6 +13,6 @@
 # amplify_github_token is still required by the root variable declaration;
 # the value below is a harmless placeholder used only for validation.
 
-aws_region             = "us-east-1"
-environment            = "dev"
-amplify_github_token   = "localstack-fake-token"
+aws_region           = "us-east-1"
+environment          = "dev"
+amplify_github_token = "localstack-fake-token"
