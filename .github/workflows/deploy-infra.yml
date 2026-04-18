@@ -47,12 +47,22 @@ on:
         description: Terraform -lock-timeout for each import (shorter = fail fast if state is locked elsewhere).
         required: false
         type: string
-        default: '45s'
+        default: '5m'
       plan_apply_lock_timeout:
         description: Terraform -lock-timeout for plan and apply.
         required: false
         type: string
-        default: '2m'
+        default: '5m'
+      lockfile_wait_timeout_seconds:
+        description: Max seconds to wait for an existing S3 Terraform lockfile to clear before running imports/plan.
+        required: false
+        type: string
+        default: '900'
+      lockfile_wait_poll_seconds:
+        description: Poll interval in seconds while waiting for the S3 Terraform lockfile to clear.
+        required: false
+        type: string
+        default: '15'
     secrets:
       AWS_ACCESS_KEY_ID:
         required: true
@@ -64,6 +74,7 @@ on:
         required: true
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
@@ -88,6 +99,14 @@ jobs:
         with:
           terraform_version: '1.7.5'
 
+      - name: Verify S3 backend is configured
+        run: |
+          set -euo pipefail
+          if ! grep -q 'backend "s3"' backend.tf; then
+            echo "Terraform backend must be S3 for shared remote state."
+            exit 1
+          fi
+
       - name: Set up TFLint
         uses: terraform-linters/setup-tflint@19a52fbac37dacb22a09518e4ef6ee234f2d4987 # v4.1.0
         with:
@@ -102,11 +121,33 @@ jobs:
             -backend-config="bucket=accommodations-planner-tf-state" \
             -backend-config="key=accommodations-planner/${{ inputs.backend_key }}" \
             -backend-config="region=${{ secrets.DEPLOY_AWS_REGION }}" \
-            -backend-config="dynamodb_table=accommodations-planner-tf-lock" \
+            -backend-config="use_lockfile=true" \
             -backend-config="encrypt=true"
 
       - name: Select workspace
         run: terraform workspace select -or-create ${{ inputs.environment }}
+
+      - name: Wait for Terraform S3 lockfile to clear
+        run: |
+          set -euo pipefail
+          BUCKET="accommodations-planner-tf-state"
+          STATE_KEY="env:/${{ inputs.environment }}/accommodations-planner/${{ inputs.backend_key }}"
+          LOCK_KEY="${STATE_KEY}.tflock"
+          TIMEOUT_SECONDS="${{ inputs.lockfile_wait_timeout_seconds }}"
+          POLL_SECONDS="${{ inputs.lockfile_wait_poll_seconds }}"
+          ELAPSED=0
+
+          echo "Checking S3 lockfile: s3://${BUCKET}/${LOCK_KEY}"
+          while aws s3api head-object --bucket "$BUCKET" --key "$LOCK_KEY" >/dev/null 2>&1; do
+            if [ "$ELAPSED" -ge "$TIMEOUT_SECONDS" ]; then
+              echo "Timed out after ${TIMEOUT_SECONDS}s waiting for Terraform lockfile to clear."
+              exit 1
+            fi
+            echo "Terraform lockfile still present. Waiting ${POLL_SECONDS}s... (${ELAPSED}/${TIMEOUT_SECONDS}s)"
+            sleep "$POLL_SECONDS"
+            ELAPSED=$((ELAPSED + POLL_SECONDS))
+          done
+          echo "No active Terraform lockfile found. Proceeding."
 
       - name: Import existing resources into state
         if: ${{ inputs.import_existing_resources }}
@@ -115,6 +156,9 @@ jobs:
           TF_VAR_environment: ${{ inputs.environment }}
           TF_VAR_aws_region: ${{ secrets.DEPLOY_AWS_REGION }}
           TF_VAR_amplify_github_token: ${{ secrets.AMPLIFY_GITHUB_TOKEN }}
+          TF_FORCE_UNLOCK_MIN_AGE_SECONDS: "1800"
+          TF_LOCK_RETRY_ATTEMPTS: "5"
+          TF_LOCK_RETRY_DELAY_SECONDS: "30"
         run: bash ../.github/scripts/terraform-import-existing.sh "${{ inputs.prefix }}" "${{ secrets.DEPLOY_AWS_REGION }}" "${{ inputs.import_lock_timeout }}"
 
       - name: Build force-replace targets
