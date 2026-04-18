@@ -3,28 +3,40 @@ name: Deploy Dev Infra
 on:
   workflow_dispatch:
     inputs:
-      delete_and_recreate:
+      force_replace_resources:
         description: >-
-          If true, plan/apply replace module.lambda, module.api_gateway, and module.amplify (not DynamoDB). Use only when you intend to recreate those stacks.
-        type: boolean
-        default: false
-      import_existing_resources:
-        description: Run the import script before plan (recommended when resources may already exist in AWS).
-        type: boolean
-        default: true
+          Space- or newline-separated Terraform resource addresses to force-replace
+          (destroy and recreate) during this deploy. Leave empty for normal behavior.
+        type: string
+        default: ''
       targeted_modules:
         description: >-
           Space-separated Terraform module targets for a partial apply
           (e.g. "module.dynamodb module.lambda"). Leave empty for a full apply.
         type: string
         default: ''
+      auto_force_unlock_stale_lock:
+        description: >-
+          If true, allows guarded auto force-unlock only for stale Terraform locks.
+          Use only if lock cleanup is operationally approved.
+        type: boolean
+        default: false
+      auto_force_unlock_ack:
+        description: >-
+          Required acknowledgement phrase if auto_force_unlock_stale_lock=true:
+          I_UNDERSTAND_FORCE_UNLOCK_RISK
+        type: string
+        default: ''
+      stale_lock_min_age_seconds:
+        description: Minimum lock age in seconds required before guarded auto force-unlock.
+        type: string
+        default: '1800'
   push:
     branches: [master]
     paths:
       - 'infrastructure/**'
       - '.github/workflows/deploy-dev-infra.yml'
       - '.github/workflows/deploy-infra.yml'
-      - '.github/scripts/terraform-import-existing.sh'
 
 concurrency:
   group: deploy-dev-infra
@@ -63,12 +75,13 @@ jobs:
     uses: ./.github/workflows/deploy-infra.yml
     with:
       environment: dev
-      prefix: accommodations-planner-dev
       backend_key: dev.tfstate
       tfvars_file: ''
-      delete_and_recreate: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.delete_and_recreate == 'true' }}
-      import_existing_resources: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.import_existing_resources != 'false' }}
+      force_replace_resources: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force_replace_resources || '' }}
       targeted_modules: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.targeted_modules || '' }}
+      auto_force_unlock_stale_lock: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.auto_force_unlock_stale_lock == 'true' }}
+      auto_force_unlock_ack: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.auto_force_unlock_ack || '' }}
+      stale_lock_min_age_seconds: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.stale_lock_min_age_seconds || '1800' }}
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

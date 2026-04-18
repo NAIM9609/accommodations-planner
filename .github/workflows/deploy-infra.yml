@@ -7,10 +7,6 @@ on:
         description: Deployment environment (dev or prod)
         required: true
         type: string
-      prefix:
-        description: Resource prefix, e.g. accommodations-planner-dev
-        required: true
-        type: string
       backend_key:
         description: Backend state key suffix under accommodations-planner/
         required: true
@@ -20,20 +16,14 @@ on:
         required: false
         type: string
         default: ''
-      import_existing_resources:
-        description: Run import script so existing AWS resources are tracked in state (avoids duplicate creates).
-        required: false
-        type: boolean
-        default: true
-      delete_and_recreate:
+      force_replace_resources:
         description: >-
-          If true, every resource found in module.lambda, module.api_gateway, and module.amplify is force-replaced
-          (destroyed then recreated) by querying 'terraform state list' and passing a -replace=<addr> flag for
-          each matching resource. DynamoDB is never affected. Use only when you intend to tear down and recreate
-          those stacks. Requires manual workflow_dispatch; ignored on push.
+          Space- or newline-separated Terraform resource addresses to force-replace on plan/apply
+          (e.g. "module.lambda.aws_lambda_function.health module.amplify.aws_amplify_app.this").
+          Use only for resources you explicitly want destroyed and recreated.
         required: false
-        type: boolean
-        default: false
+        type: string
+        default: ''
       targeted_modules:
         description: >-
           Space-separated list of Terraform module targets for a targeted apply
@@ -43,18 +33,13 @@ on:
         required: false
         type: string
         default: ''
-      import_lock_timeout:
-        description: Terraform -lock-timeout for each import (shorter = fail fast if state is locked elsewhere).
-        required: false
-        type: string
-        default: '5m'
       plan_apply_lock_timeout:
         description: Terraform -lock-timeout for plan and apply.
         required: false
         type: string
-        default: '5m'
+        default: '10m'
       lockfile_wait_timeout_seconds:
-        description: Max seconds to wait for an existing Terraform state lock to clear before running imports/plan.
+        description: Max seconds to wait for an existing Terraform state lock to clear before workspace select/plan.
         required: false
         type: string
         default: '900'
@@ -63,6 +48,25 @@ on:
         required: false
         type: string
         default: '15'
+      auto_force_unlock_stale_lock:
+        description: >-
+          If true, when lock wait times out the workflow may run `terraform force-unlock` only when
+          lock metadata is readable and lock age is >= stale_lock_min_age_seconds.
+        required: false
+        type: boolean
+        default: false
+      auto_force_unlock_ack:
+        description: >-
+          Safety acknowledgement string required when auto_force_unlock_stale_lock is true.
+          Must be exactly: I_UNDERSTAND_FORCE_UNLOCK_RISK
+        required: false
+        type: string
+        default: ''
+      stale_lock_min_age_seconds:
+        description: Minimum lock age in seconds required before optional auto force-unlock is attempted.
+        required: false
+        type: string
+        default: '1800'
     secrets:
       AWS_ACCESS_KEY_ID:
         required: true
@@ -81,6 +85,13 @@ jobs:
     name: Terraform Plan/Apply (${{ inputs.environment }})
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    concurrency:
+      group: terraform-${{ inputs.environment }}-${{ inputs.backend_key }}
+      cancel-in-progress: false
+    env:
+      TF_IN_AUTOMATION: "true"
+      AWS_RETRY_MODE: standard
+      AWS_MAX_ATTEMPTS: "10"
     defaults:
       run:
         working-directory: infrastructure
@@ -124,33 +135,97 @@ jobs:
             -backend-config="dynamodb_table=accommodations-planner-tf-lock" \
             -backend-config="encrypt=true"
 
-      - name: Select workspace
-        run: terraform workspace select -or-create ${{ inputs.environment }}
-
       - name: Wait for Terraform DynamoDB lock to clear
+        id: wait_lock
         run: |
           set -euo pipefail
           LOCK_TABLE="accommodations-planner-tf-lock"
           STATE_PATH="accommodations-planner-tf-state/env:/${{ inputs.environment }}/accommodations-planner/${{ inputs.backend_key }}"
           TIMEOUT_SECONDS="${{ inputs.lockfile_wait_timeout_seconds }}"
           POLL_SECONDS="${{ inputs.lockfile_wait_poll_seconds }}"
+          STALE_MIN_AGE_SECONDS="${{ inputs.stale_lock_min_age_seconds }}"
+          AUTO_FORCE_UNLOCK_ACK="${{ inputs.auto_force_unlock_ack }}"
           ELAPSED=0
 
+          if ! [[ "$TIMEOUT_SECONDS" =~ ^[0-9]+$ ]] || [ "$TIMEOUT_SECONDS" -le 0 ]; then
+            echo "Invalid lockfile_wait_timeout_seconds: ${TIMEOUT_SECONDS}. Must be a positive integer."
+            exit 1
+          fi
+          if ! [[ "$POLL_SECONDS" =~ ^[0-9]+$ ]] || [ "$POLL_SECONDS" -le 0 ]; then
+            echo "Invalid lockfile_wait_poll_seconds: ${POLL_SECONDS}. Must be a positive integer."
+            exit 1
+          fi
+          if ! [[ "$STALE_MIN_AGE_SECONDS" =~ ^[0-9]+$ ]] || [ "$STALE_MIN_AGE_SECONDS" -le 0 ]; then
+            echo "Invalid stale_lock_min_age_seconds: ${STALE_MIN_AGE_SECONDS}. Must be a positive integer."
+            exit 1
+          fi
+          if [ "${{ inputs.auto_force_unlock_stale_lock }}" = "true" ] && [ "$AUTO_FORCE_UNLOCK_ACK" != "I_UNDERSTAND_FORCE_UNLOCK_RISK" ]; then
+            echo "Refusing auto force-unlock: missing required acknowledgement phrase."
+            exit 1
+          fi
+
           echo "Checking DynamoDB lock table '${LOCK_TABLE}' for state path '${STATE_PATH}'"
-          while [ "$(aws dynamodb scan \
+          while [ "$(aws dynamodb get-item \
             --table-name "$LOCK_TABLE" \
-            --filter-expression "contains(Info, :statePath)" \
-            --expression-attribute-values '{":statePath":{"S":"'"$STATE_PATH"'"}}' \
-            --query 'Count' \
-            --output text)" != "0" ]; do
+            --key "{\"LockID\":{\"S\":\"${STATE_PATH}\"}}" \
+            --consistent-read \
+            --query 'Item.LockID.S' \
+            --output text)" != "None" ]; do
             if [ "$ELAPSED" -ge "$TIMEOUT_SECONDS" ]; then
               echo "Timed out after ${TIMEOUT_SECONDS}s waiting for Terraform lock to clear."
-              aws dynamodb scan \
+              LOCK_INFO_RAW="$(aws dynamodb get-item \
                 --table-name "$LOCK_TABLE" \
-                --filter-expression "contains(Info, :statePath)" \
-                --expression-attribute-values '{":statePath":{"S":"'"$STATE_PATH"'"}}' \
-                --query 'Items[*].Info.S' \
-                --output text || true
+                --key "{\"LockID\":{\"S\":\"${STATE_PATH}\"}}" \
+                --consistent-read \
+                --query 'Item.Info.S' \
+                --output text || true)"
+
+              echo "Lock metadata: ${LOCK_INFO_RAW}"
+
+              # Optional safe auto-recovery: only unlock if metadata can be parsed and lock is old enough.
+              if [ "${{ inputs.auto_force_unlock_stale_lock }}" = "true" ]; then
+                LOCK_ID=""
+                CREATED_AT=""
+
+                if command -v jq >/dev/null 2>&1; then
+                  LOCK_ID="$(printf '%s' "$LOCK_INFO_RAW" | jq -r 'fromjson? | .ID // empty' 2>/dev/null || true)"
+                  CREATED_AT="$(printf '%s' "$LOCK_INFO_RAW" | jq -r 'fromjson? | .Created // empty' 2>/dev/null || true)"
+                fi
+
+                if [ -n "$LOCK_ID" ] && [ -n "$CREATED_AT" ]; then
+                  NOW_EPOCH="$(date -u +%s)"
+                  CREATED_EPOCH="$(date -u -d "$CREATED_AT" +%s 2>/dev/null || true)"
+                  if [ -n "$CREATED_EPOCH" ]; then
+                    LOCK_AGE_SECONDS=$((NOW_EPOCH - CREATED_EPOCH))
+                    echo "Detected lock age: ${LOCK_AGE_SECONDS}s (minimum for auto force-unlock: ${STALE_MIN_AGE_SECONDS}s)."
+
+                    if [ "$LOCK_AGE_SECONDS" -ge "$STALE_MIN_AGE_SECONDS" ]; then
+                      echo "Attempting guarded terraform force-unlock for lock ID ${LOCK_ID}."
+                      terraform force-unlock -force "$LOCK_ID"
+
+                      # Verify lock was actually cleared before proceeding.
+                      if [ "$(aws dynamodb get-item \
+                        --table-name "$LOCK_TABLE" \
+                        --key "{\"LockID\":{\"S\":\"${STATE_PATH}\"}}" \
+                        --consistent-read \
+                        --query 'Item.LockID.S' \
+                        --output text)" = "None" ]; then
+                        echo "Stale Terraform lock cleared. Continuing workflow."
+                        break
+                      fi
+
+                      echo "Force-unlock was attempted but lock still exists."
+                    else
+                      echo "Lock is not old enough for safe auto force-unlock; refusing unlock."
+                    fi
+                  else
+                    echo "Unable to parse lock creation timestamp; refusing auto force-unlock."
+                  fi
+                else
+                  echo "Unable to parse lock metadata (ID/Created); refusing auto force-unlock."
+                fi
+              fi
+
               exit 1
             fi
             echo "Terraform lock still present. Waiting ${POLL_SECONDS}s... (${ELAPSED}/${TIMEOUT_SECONDS}s)"
@@ -159,46 +234,60 @@ jobs:
           done
           echo "No active Terraform lock found. Proceeding."
 
-      - name: Decide whether import is needed
-        id: import_decision
+      - name: Select workspace with lock-aware retries
+        id: workspace_select
         run: |
           set -euo pipefail
-          if terraform state list | grep -q '.'; then
-            echo "Existing Terraform state detected; skipping imports for untouched resources."
-            echo "should_import=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "Terraform state is empty; imports are needed to adopt existing resources."
-            echo "should_import=true" >> "$GITHUB_OUTPUT"
-          fi
+          TIMEOUT_SECONDS="${{ inputs.lockfile_wait_timeout_seconds }}"
+          POLL_SECONDS="${{ inputs.lockfile_wait_poll_seconds }}"
+          ELAPSED=0
 
-      - name: Import existing resources into state
-        if: ${{ inputs.import_existing_resources && steps.import_decision.outputs.should_import == 'true' }}
-        env:
-          TF_INPUT: "0"
-          TF_VAR_environment: ${{ inputs.environment }}
-          TF_VAR_aws_region: ${{ secrets.DEPLOY_AWS_REGION }}
-          TF_VAR_amplify_github_token: ${{ secrets.AMPLIFY_GITHUB_TOKEN }}
-          TF_FORCE_UNLOCK_MIN_AGE_SECONDS: "1800"
-          TF_LOCK_RETRY_ATTEMPTS: "5"
-          TF_LOCK_RETRY_DELAY_SECONDS: "30"
-        run: bash ../.github/scripts/terraform-import-existing.sh "${{ inputs.prefix }}" "${{ secrets.DEPLOY_AWS_REGION }}" "${{ inputs.import_lock_timeout }}"
+          while true; do
+            set +e
+            WORKSPACE_OUTPUT="$(terraform workspace select -or-create ${{ inputs.environment }} 2>&1)"
+            WORKSPACE_EXIT=$?
+            set -e
+
+            if [ "$WORKSPACE_EXIT" -eq 0 ]; then
+              echo "$WORKSPACE_OUTPUT"
+              break
+            fi
+
+            if printf '%s' "$WORKSPACE_OUTPUT" | grep -Eq 'Error acquiring the state lock|ConditionalCheckFailedException'; then
+              if [ "$ELAPSED" -ge "$TIMEOUT_SECONDS" ]; then
+                echo "Workspace selection failed due to persistent Terraform lock after ${TIMEOUT_SECONDS}s."
+                echo "$WORKSPACE_OUTPUT"
+                exit 1
+              fi
+              echo "Workspace select hit lock; retrying in ${POLL_SECONDS}s... (${ELAPSED}/${TIMEOUT_SECONDS}s)"
+              sleep "$POLL_SECONDS"
+              ELAPSED=$((ELAPSED + POLL_SECONDS))
+              continue
+            fi
+
+            echo "$WORKSPACE_OUTPUT"
+            echo "Workspace selection failed due to a non-lock error."
+            exit 1
+          done
 
       - name: Build force-replace targets
-        if: ${{ inputs.delete_and_recreate == true }}
         run: |
           set -euo pipefail
-          # terraform -replace requires individual resource instance addresses, not module paths.
-          # Query the current state to collect every address under the three target modules.
-          # Auth/backend errors from terraform state list propagate via set -e + pipefail.
-          # grep exit-1 (no matching lines) is suppressed intentionally – empty state is valid.
-          terraform state list \
-            | grep -E '^module\.(lambda|api_gateway|amplify)\.' \
-            > /tmp/replace_targets.txt || true
-          echo "Resources to force-replace:"
+          : > /tmp/replace_targets.txt
+          REPLACE_INPUT="${{ inputs.force_replace_resources }}"
+          if [ -n "$REPLACE_INPUT" ]; then
+            # Normalize any whitespace-delimited list into one resource address per line.
+            printf '%s\n' "$REPLACE_INPUT" \
+              | tr -s '[:space:]' '\n' \
+              | sed '/^$/d' \
+              > /tmp/replace_targets.txt
+          fi
+
+          echo "Requested force-replace resources:"
           if [ -s /tmp/replace_targets.txt ]; then
             cat /tmp/replace_targets.txt
           else
-            echo "(none found in state – resources will be created fresh)"
+            echo "(none requested)"
           fi
 
       # Back up the current remote state before touching it.
@@ -267,10 +356,39 @@ jobs:
           fi
 
       - name: Terraform apply
+        id: apply
         if: ${{ steps.plan.outputs.plan_exit == '2' }}
         run: |
           set -euo pipefail
           terraform apply -auto-approve tfplan
+
+      - name: Lock diagnostics on failure
+        if: ${{ failure() }}
+        run: |
+          set -euo pipefail
+          LOCK_TABLE="accommodations-planner-tf-lock"
+          STATE_PATH="accommodations-planner-tf-state/env:/${{ inputs.environment }}/accommodations-planner/${{ inputs.backend_key }}"
+
+          LOCK_JSON="$(aws dynamodb get-item \
+            --table-name "$LOCK_TABLE" \
+            --key "{\"LockID\":{\"S\":\"${STATE_PATH}\"}}" \
+            --consistent-read \
+            --output json || true)"
+
+          echo "Terraform lock diagnostics for ${STATE_PATH}:"
+          echo "$LOCK_JSON"
+
+          {
+            echo "## Terraform Lock Diagnostics"
+            echo ""
+            echo "- Environment: ${{ inputs.environment }}"
+            echo "- Backend key: ${{ inputs.backend_key }}"
+            echo "- State path: ${STATE_PATH}"
+            echo ""
+            echo '```json'
+            echo "$LOCK_JSON"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # Validate key outputs exist and are non-empty after apply.
       # Outputs checked: api_url (module.api_gateway), dynamodb_table_name (module.dynamodb).
