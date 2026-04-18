@@ -120,7 +120,7 @@ jobs:
             -backend-config="bucket=accommodations-planner-tf-state" \
             -backend-config="key=accommodations-planner/${{ inputs.backend_key }}" \
             -backend-config="region=${{ secrets.DEPLOY_AWS_REGION }}" \
-            -backend-config="use_lockfile=true" \
+            -backend-config="dynamodb_table=accommodations-planner-tf-lock" \
             -backend-config="encrypt=true"
 
       - name: Select workspace
