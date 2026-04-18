@@ -131,7 +131,7 @@ jobs:
       # The backup key is timestamped so each run is independently recoverable.
       - name: Back up S3 Terraform state
         run: |
-          TIMESTAMP="$(date -u '+%Y%m%dT%H%M%SZ')"
+          TIMESTAMP="$(date -u '+%Y-%m-%dT%H-%M-%SZ')"
           SOURCE_KEY="accommodations-planner/${{ inputs.backend_key }}"
           BACKUP_KEY="accommodations-planner/backups/${TIMESTAMP}-${{ inputs.backend_key }}"
           BUCKET="accommodations-planner-tf-state"
@@ -177,6 +177,10 @@ jobs:
           terraform plan "${TF_ARGS[@]}"
           PLAN_EXIT=$?
           set -e
+          if [[ ! "$PLAN_EXIT" =~ ^[0-2]$ ]]; then
+            echo "Unexpected terraform plan exit code: ${PLAN_EXIT} (expected 0, 1, or 2)"
+            exit 1
+          fi
           if [ "$PLAN_EXIT" -eq 1 ]; then
             echo "Terraform plan failed with an error."
             exit 1
@@ -195,6 +199,8 @@ jobs:
           terraform apply -auto-approve tfplan
 
       # Validate key outputs exist and are non-empty after apply.
+      # Outputs checked: api_url (module.api_gateway), dynamodb_table_name (module.dynamodb).
+      # Update this list if root outputs.tf is changed.
       - name: Validate Terraform outputs
         if: ${{ steps.plan.outputs.plan_exit == '2' }}
         run: |
@@ -211,3 +217,7 @@ jobs:
           }
           check_output "api_url"
           check_output "dynamodb_table_name"
+
+      - name: Clean up plan file
+        if: always()
+        run: rm -f tfplan

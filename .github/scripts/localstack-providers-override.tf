@@ -1,3 +1,8 @@
+# WARNING: This file MUST ONLY be used with LocalStack for local/CI testing.
+# DO NOT copy into infrastructure/ for real AWS deployments — fake credentials
+# and disabled validation will cause authentication failures and expose no real
+# infrastructure, but the misconfigured provider could mask serious errors.
+#
 # LocalStack provider override – injected by CI; NOT for real AWS deployments.
 #
 # This file overrides infrastructure/provider.tf to redirect all AWS API calls

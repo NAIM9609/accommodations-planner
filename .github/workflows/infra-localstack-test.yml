@@ -30,14 +30,13 @@ jobs:
           docker run -d --name localstack \
             -p 14566:4566 \
             -e DEBUG=0 \
-            localstack/localstack:latest
+            localstack/localstack:3.8.0
 
       - name: Wait for LocalStack to be healthy
         run: |
           echo "Waiting for LocalStack to become healthy..."
-          timeout 90 bash -c \
-            'until curl -sf http://localhost:14566/_localstack/health \
-               | grep -q "\"running\""; do sleep 3; done'
+          curl --retry 30 --retry-delay 3 --retry-connrefused --silent --fail \
+            http://localhost:14566/_localstack/health > /dev/null
           echo "LocalStack is healthy."
 
       - uses: hashicorp/setup-terraform@b9cd54531c595e3a53f1ca38e3e2b3d8bfef3982 # v3.2.0
@@ -93,6 +92,10 @@ jobs:
             -target=module.lambda \
             -target=module.api_gateway \
             -input=false || true
+
+      - name: Remove LocalStack provider override
+        if: always()
+        run: rm -f localstack_override.tf localstack.tfplan
 
       - name: Stop LocalStack
         if: always()

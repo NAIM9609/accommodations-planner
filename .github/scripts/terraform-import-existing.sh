@@ -76,24 +76,29 @@ fi
 # Emit drift manifest so the caller can reason about state before apply.
 # ---------------------------------------------------------------------------
 build_json_array() {
-  # Accepts 0 or more arguments; returns a JSON array string.
-  local result="["
-  local first=true
-  for item in "$@"; do
-    if [ "$first" = true ]; then
-      first=false
-    else
-      result+=","
-    fi
-    result+="\"${item}\""
-  done
-  result+="]"
-  printf '%s' "$result"
+  # Accepts 0 or more arguments; returns a properly-escaped JSON array string.
+  # Uses jq -R/-s to handle any characters (quotes, backslashes, etc.) that
+  # appear in Terraform resource addresses such as:
+  #   module.lambda.aws_cloudwatch_log_group.lambda["health"]
+  if [ "$#" -eq 0 ]; then
+    printf '[]'
+    return
+  fi
+  printf '%s\n' "$@" | jq -R . | jq -sc .
 }
 
-# Expand arrays safely when set -u is active (empty array → no args).
-AIS_JSON=$(build_json_array ${ALREADY_IN_STATE[@]+"${ALREADY_IN_STATE[@]}"})
-NI_JSON=$(build_json_array ${NEWLY_IMPORTED[@]+"${NEWLY_IMPORTED[@]}"})
+# Expand arrays safely when set -u is active (empty array → zero args to function).
+if [ "${#ALREADY_IN_STATE[@]}" -gt 0 ]; then
+  AIS_JSON=$(build_json_array "${ALREADY_IN_STATE[@]}")
+else
+  AIS_JSON="[]"
+fi
+
+if [ "${#NEWLY_IMPORTED[@]}" -gt 0 ]; then
+  NI_JSON=$(build_json_array "${NEWLY_IMPORTED[@]}")
+else
+  NI_JSON="[]"
+fi
 
 MANIFEST_FILE="/tmp/drift-manifest.json"
 printf '{\n  "already_in_state": %s,\n  "newly_imported": %s\n}\n' \
