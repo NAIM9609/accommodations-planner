@@ -33,17 +33,3 @@ jobs:
           cfn-lint root-stack.yaml
           cfn-lint nested/*.yaml
 
-      - name: Validate template syntax (AWS CLI)
-        working-directory: infrastructure
-        run: |
-          set -euo pipefail
-          for template in root-stack.yaml nested/*.yaml; do
-            echo "Validating ${template}..."
-            aws cloudformation validate-template \
-              --template-body "file://${template}" 2>&1 || true
-          done
-        env:
-          AWS_DEFAULT_REGION: us-east-1
-          # validate-template can run without real credentials for syntax checks
-          AWS_ACCESS_KEY_ID: test
-          AWS_SECRET_ACCESS_KEY: test
