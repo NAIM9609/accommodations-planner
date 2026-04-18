@@ -88,6 +88,14 @@ jobs:
         with:
           terraform_version: '1.7.5'
 
+      - name: Set up TFLint
+        uses: terraform-linters/setup-tflint@19a52fbac37dacb22a09518e4ef6ee234f2d4987 # v4.1.0
+        with:
+          tflint_version: v0.53.0
+
+      - name: Terraform preflight checks
+        run: bash ../scripts/validate-terraform-precommit.sh
+
       - name: Terraform init
         run: |
           terraform init \

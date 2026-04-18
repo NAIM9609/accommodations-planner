@@ -13,7 +13,8 @@
     "lint:frontend": "npm run lint -w frontend",
     "lint:backend": "npm run lint -w backend",
     "frontend": "npm run dev -w frontend",
-    "backend:test": "npm run test -w backend"
+    "backend:test": "npm run test -w backend",
+    "terraform:check": "pwsh -NoLogo -NoProfile -File scripts/validate-terraform-precommit.ps1"
   },
   "overrides": {
     "caniuse-lite": "1.0.30001699"

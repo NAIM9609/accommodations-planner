@@ -7,22 +7,28 @@ on:
     paths:
       - 'infrastructure/**'
       - '.github/workflows/infra-validate.yml'
+      - 'scripts/validate-terraform-precommit.sh'
+      - '.github/scripts/**'
+      - 'scripts/deploy-local.sh'
   pull_request:
     branches: [master]
     paths:
       - 'infrastructure/**'
       - '.github/workflows/infra-validate.yml'
+      - 'scripts/validate-terraform-precommit.sh'
+      - '.github/scripts/**'
+      - 'scripts/deploy-local.sh'
 
 permissions:
   contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   terraform-validate:
     name: Terraform Validate
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: infrastructure
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
@@ -35,29 +41,5 @@ jobs:
         with:
           tflint_version: v0.53.0
 
-      - name: Terraform fmt check
-        run: terraform fmt -check -recursive
-
-      - name: Terraform init (no backend)
-        run: terraform init -backend=false -input=false
-
-      - name: TFLint init (download plugins from .tflint.hcl)
-        run: tflint --init
-
-      - name: TFLint check
-        run: tflint --recursive
-
-      # Pass all required variables explicitly so validate catches undeclared
-      # variable references and provider configuration errors in addition to
-      # basic HCL syntax issues.
-      - name: Terraform validate
-        env:
-          TF_VAR_aws_region: "us-east-1"
-          TF_VAR_environment: "dev"
-          TF_VAR_amplify_github_token: "placeholder"
-        run: terraform validate
-
-      # Run the offline unit tests for every root variable validation rule.
-      # mock_provider blocks eliminate the need for AWS credentials.
-      - name: Terraform test (variable validation rules)
-        run: terraform test -filter=tests/variables.tftest.hcl
+      - name: Terraform pre-commit equivalent checks
+        run: bash scripts/validate-terraform-precommit.sh

@@ -20,7 +20,8 @@ resource "aws_dynamodb_table" "reservations" {
   }
 
   tags = {
-    Name = var.table_name
+    Environment = var.environment
+    Name        = var.table_name
   }
 
   lifecycle {
