@@ -2,6 +2,7 @@
   "nav": {
     "home": "Home",
     "reservations": "Reservations",
+    "help": "Help",
     "skipToMain": "Skip to main content"
   },
   "footer": {
@@ -126,5 +127,38 @@
   },
   "common": {
     "notice": "Notice:"
+  },
+  "ai": {
+    "chat": {
+      "openLabel": "Open concierge chat",
+      "closeLabel": "Close concierge chat",
+      "panelLabel": "Concierge chat",
+      "messagesLabel": "Chat messages",
+      "typingLabel": "Concierge is typing",
+      "title": "AI Concierge",
+      "subtitle": "Ask anything about your stay",
+      "emptyHint": "Hi! How can I help you today?",
+      "inputPlaceholder": "Type a message…",
+      "inputLabel": "Chat message",
+      "sendLabel": "Send message",
+      "errorSend": "Could not send your message. Please try again."
+    },
+    "help": {
+      "pageTitle": "Help & FAQ",
+      "metaDescription": "Get instant answers about rooms, availability, pricing, and reservations.",
+      "kicker": "Intelligent Assistant",
+      "subtitle": "Ask a question and our AI will search the knowledge base for an accurate answer.",
+      "questionLabel": "Your question",
+      "questionPlaceholder": "e.g. What is the check-in time?",
+      "askButton": "Ask",
+      "askingButton": "Searching…",
+      "answerHeading": "Answer",
+      "citationsHeading": "Sources",
+      "sourceLabel": "Source {{index}}",
+      "locationLabel": "Location:",
+      "unavailableTitle": "Knowledge base not yet configured",
+      "unavailableDesc": "The AI-powered FAQ is being set up. In the meantime, please contact our concierge team directly.",
+      "errorAsk": "Could not fetch an answer. Please try again."
+    }
   }
 }

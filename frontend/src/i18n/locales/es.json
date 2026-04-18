@@ -2,6 +2,7 @@
   "nav": {
     "home": "Inicio",
     "reservations": "Reservas",
+    "help": "Ayuda",
     "skipToMain": "Ir al contenido principal"
   },
   "footer": {
@@ -126,5 +127,38 @@
   },
   "common": {
     "notice": "Aviso:"
+  },
+  "ai": {
+    "chat": {
+      "openLabel": "Abrir chat del concierge",
+      "closeLabel": "Cerrar chat del concierge",
+      "panelLabel": "Chat del concierge",
+      "messagesLabel": "Mensajes del chat",
+      "typingLabel": "El concierge está escribiendo",
+      "title": "Concierge IA",
+      "subtitle": "Pregunta lo que quieras sobre tu estancia",
+      "emptyHint": "¡Hola! ¿En qué puedo ayudarte hoy?",
+      "inputPlaceholder": "Escribe un mensaje…",
+      "inputLabel": "Mensaje de chat",
+      "sendLabel": "Enviar mensaje",
+      "errorSend": "No se pudo enviar tu mensaje. Inténtalo de nuevo."
+    },
+    "help": {
+      "pageTitle": "Ayuda y FAQ",
+      "metaDescription": "Obtén respuestas instantáneas sobre habitaciones, disponibilidad, precios y reservas.",
+      "kicker": "Asistente Inteligente",
+      "subtitle": "Haz una pregunta y nuestra IA buscará una respuesta precisa en la base de conocimiento.",
+      "questionLabel": "Tu pregunta",
+      "questionPlaceholder": "p. ej. ¿Cuál es el horario de check-in?",
+      "askButton": "Preguntar",
+      "askingButton": "Buscando…",
+      "answerHeading": "Respuesta",
+      "citationsHeading": "Fuentes",
+      "sourceLabel": "Fuente {{index}}",
+      "locationLabel": "Ubicación:",
+      "unavailableTitle": "Base de conocimiento aún no configurada",
+      "unavailableDesc": "El FAQ con IA está en configuración. Mientras tanto, contacta directamente con nuestro equipo de concierge.",
+      "errorAsk": "No se pudo obtener una respuesta. Inténtalo de nuevo."
+    }
   }
 }

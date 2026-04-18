@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BRAND } from '../lib/brand';
+import ConciergeChat from './ai/ConciergeChat';
 import LanguageSwitcher from './LanguageSwitcher';
 
 interface LayoutProps {
@@ -55,6 +56,7 @@ export default function Layout({ children }: LayoutProps) {
             <div className="site-nav__links">
               {navLink('/', t('nav.home'))}
               {navLink('/reservations', t('nav.reservations'))}
+              {navLink('/help', t('nav.help'))}
             </div>
             <LanguageSwitcher />
           </nav>
@@ -77,6 +79,8 @@ export default function Layout({ children }: LayoutProps) {
             © <span>{BRAND.copyrightYear}</span> {BRAND.shortName}. {t('footer.allRightsReserved')}
           </p>
         </footer>
+
+        <ConciergeChat />
       </div>
     </>
   );
