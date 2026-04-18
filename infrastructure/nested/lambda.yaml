@@ -46,9 +46,22 @@ Parameters:
     Type: String
     Default: placeholders/layer-placeholder.zip
     Description: S3 key for the placeholder Lambda layer zip
+  BedrockModelId:
+    Type: String
+    Default: "anthropic.claude-3-haiku-20240307-v1:0"
+    Description: >
+      Bedrock foundation model ID for AI chat and RAG generation.
+      The model must be enabled in the Bedrock console for the target region.
+  KnowledgeBaseId:
+    Type: String
+    Default: ""
+    Description: >
+      Bedrock Knowledge Base ID for RAG queries.
+      Leave empty to disable the /ai/rag endpoint (returns 503).
 
 Conditions:
   HasReservedConcurrency: !Not [!Equals [!Ref ReservedConcurrency, -1]]
+  HasKnowledgeBaseId: !Not [!Equals [!Ref KnowledgeBaseId, ""]]
 
 Resources:
   LambdaExecutionRole:
@@ -77,6 +90,22 @@ Resources:
                   - dynamodb:Scan
                   - dynamodb:Query
                 Resource: !Ref DynamoDBTableArn
+        - PolicyName: !Sub "${Prefix}-lambda-bedrock"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource: !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/${BedrockModelId}"
+              - Effect: Allow
+                Action:
+                  - bedrock:Retrieve
+                  - bedrock:RetrieveAndGenerate
+                Resource: !If
+                  - HasKnowledgeBaseId
+                  - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/${KnowledgeBaseId}"
+                  - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/DISABLED"
 
   DepsLayer:
     Type: AWS::Lambda::LayerVersion
@@ -151,6 +180,71 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${Prefix}-reservations"
       RetentionInDays: !Ref LogRetentionDays
 
+  AiChatFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${Prefix}-ai-chat"
+      Runtime: nodejs20.x
+      Handler: handlers/ai-chat.handler
+      Timeout: 30
+      MemorySize: 256
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Layers:
+        - !Ref DepsLayer
+      ReservedConcurrentExecutions: !If
+        - HasReservedConcurrency
+        - !Ref ReservedConcurrency
+        - !Ref AWS::NoValue
+      Code:
+        S3Bucket: !Ref PlaceholderBucket
+        S3Key: !Ref PlaceholderKey
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          AMPLIFY_BRANCH: !Ref AmplifyBranch
+          CUSTOM_DOMAIN_URL: !Ref CustomDomainUrl
+          CORS_ALLOWED_ORIGINS: !Ref CorsAllowedOrigins
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
+
+  AiRagFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${Prefix}-ai-rag"
+      Runtime: nodejs20.x
+      Handler: handlers/ai-rag.handler
+      Timeout: 60
+      MemorySize: 256
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Layers:
+        - !Ref DepsLayer
+      ReservedConcurrentExecutions: !If
+        - HasReservedConcurrency
+        - !Ref ReservedConcurrency
+        - !Ref AWS::NoValue
+      Code:
+        S3Bucket: !Ref PlaceholderBucket
+        S3Key: !Ref PlaceholderKey
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          AMPLIFY_BRANCH: !Ref AmplifyBranch
+          CUSTOM_DOMAIN_URL: !Ref CustomDomainUrl
+          CORS_ALLOWED_ORIGINS: !Ref CorsAllowedOrigins
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
+          KNOWLEDGE_BASE_ID: !Ref KnowledgeBaseId
+
+  AiChatLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${Prefix}-ai-chat"
+      RetentionInDays: !Ref LogRetentionDays
+
+  AiRagLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${Prefix}-ai-rag"
+      RetentionInDays: !Ref LogRetentionDays
+
 Outputs:
   HealthLambdaArn:
     Description: Health Lambda function ARN
@@ -167,3 +261,15 @@ Outputs:
   LambdaRoleArn:
     Description: Lambda execution role ARN
     Value: !GetAtt LambdaExecutionRole.Arn
+  AiChatLambdaArn:
+    Description: AI chat Lambda function ARN
+    Value: !GetAtt AiChatFunction.Arn
+  AiChatLambdaName:
+    Description: AI chat Lambda function name
+    Value: !Ref AiChatFunction
+  AiRagLambdaArn:
+    Description: AI RAG Lambda function ARN
+    Value: !GetAtt AiRagFunction.Arn
+  AiRagLambdaName:
+    Description: AI RAG Lambda function name
+    Value: !Ref AiRagFunction

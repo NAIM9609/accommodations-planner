@@ -29,6 +29,18 @@ Parameters:
     Type: Number
     Default: 10
     Description: Burst limit
+  AiChatLambdaArn:
+    Type: String
+    Description: ARN of the AI chat Lambda function
+  AiChatLambdaName:
+    Type: String
+    Description: Name of the AI chat Lambda function
+  AiRagLambdaArn:
+    Type: String
+    Description: ARN of the AI RAG Lambda function
+  AiRagLambdaName:
+    Type: String
+    Description: Name of the AI RAG Lambda function
 
 Resources:
   HttpApi:
@@ -127,6 +139,71 @@ Resources:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref ReservationsLambdaName
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*"
+
+  AiChatIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationMethod: POST
+      PayloadFormatVersion: "1.0"
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AiChatLambdaArn}/invocations"
+
+  AiRagIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationMethod: POST
+      PayloadFormatVersion: "1.0"
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AiRagLambdaArn}/invocations"
+
+  # AI chat routes
+  AiChatPostRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: POST /ai/chat
+      Target: !Sub "integrations/${AiChatIntegration}"
+
+  AiChatOptionsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: OPTIONS /ai/chat
+      Target: !Sub "integrations/${AiChatIntegration}"
+
+  # AI RAG routes
+  AiRagPostRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: POST /ai/rag
+      Target: !Sub "integrations/${AiRagIntegration}"
+
+  AiRagOptionsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: OPTIONS /ai/rag
+      Target: !Sub "integrations/${AiRagIntegration}"
+
+  # Lambda permissions for AI functions
+  AiChatLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AiChatLambdaName
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*"
+
+  AiRagLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AiRagLambdaName
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*"
