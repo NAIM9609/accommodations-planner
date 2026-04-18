@@ -2,35 +2,6 @@ name: Deploy Dev Infra
 
 on:
   workflow_dispatch:
-    inputs:
-      force_replace_resources:
-        description: >-
-          Space- or newline-separated Terraform resource addresses to force-replace
-          (destroy and recreate) during this deploy. Leave empty for normal behavior.
-        type: string
-        default: ''
-      targeted_modules:
-        description: >-
-          Space-separated Terraform module targets for a partial apply
-          (e.g. "module.dynamodb module.lambda"). Leave empty for a full apply.
-        type: string
-        default: ''
-      auto_force_unlock_stale_lock:
-        description: >-
-          If true, allows guarded auto force-unlock only for stale Terraform locks.
-          Use only if lock cleanup is operationally approved.
-        type: boolean
-        default: false
-      auto_force_unlock_ack:
-        description: >-
-          Required acknowledgement phrase if auto_force_unlock_stale_lock=true:
-          I_UNDERSTAND_FORCE_UNLOCK_RISK
-        type: string
-        default: ''
-      stale_lock_min_age_seconds:
-        description: Minimum lock age in seconds required before guarded auto force-unlock.
-        type: string
-        default: '1800'
   push:
     branches: [master]
     paths:
@@ -46,42 +17,12 @@ permissions:
   contents: read
 
 jobs:
-  validate-deploy-secrets-dev:
-    name: Validate Deploy Secrets (Dev)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Ensure required secrets are present
-        run: |
-          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
-            echo "Missing required secret: AWS_ACCESS_KEY_ID"
-            exit 1
-          fi
-          if [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
-            echo "Missing required secret: AWS_SECRET_ACCESS_KEY"
-            exit 1
-          fi
-          if [ -z "${{ secrets.AMPLIFY_GITHUB_TOKEN }}" ]; then
-            echo "Missing required secret: AMPLIFY_GITHUB_TOKEN"
-            exit 1
-          fi
-          if [ -z "${{ secrets.DEPLOY_AWS_REGION }}" ]; then
-            echo "Missing required secret: DEPLOY_AWS_REGION"
-            exit 1
-          fi
-
-  deploy-infra-dev:
+  deploy-infra:
     name: Deploy Infra to Dev
-    needs: [validate-deploy-secrets-dev]
     uses: ./.github/workflows/deploy-infra.yml
     with:
       environment: dev
       backend_key: dev.tfstate
-      tfvars_file: ''
-      force_replace_resources: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force_replace_resources || '' }}
-      targeted_modules: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.targeted_modules || '' }}
-      auto_force_unlock_stale_lock: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.auto_force_unlock_stale_lock == 'true' }}
-      auto_force_unlock_ack: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.auto_force_unlock_ack || '' }}
-      stale_lock_min_age_seconds: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.stale_lock_min_age_seconds || '1800' }}
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
