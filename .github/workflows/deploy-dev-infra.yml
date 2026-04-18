@@ -12,6 +12,12 @@ on:
         description: Run the import script before plan (recommended when resources may already exist in AWS).
         type: boolean
         default: true
+      targeted_modules:
+        description: >-
+          Space-separated Terraform module targets for a partial apply
+          (e.g. "module.dynamodb module.lambda"). Leave empty for a full apply.
+        type: string
+        default: ''
   push:
     branches: [master]
     paths:
@@ -62,6 +68,7 @@ jobs:
       tfvars_file: ''
       delete_and_recreate: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.delete_and_recreate == 'true' }}
       import_existing_resources: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.import_existing_resources != 'false' }}
+      targeted_modules: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.targeted_modules || '' }}
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

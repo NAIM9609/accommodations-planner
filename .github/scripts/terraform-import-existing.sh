@@ -5,6 +5,10 @@ PREFIX="${1:?prefix is required}"
 REGION="${2:?region is required}"
 LOCK_TIMEOUT="${3:-5m}"
 
+# Accumulators for the drift manifest written at the end of this script.
+ALREADY_IN_STATE=()
+NEWLY_IMPORTED=()
+
 run_with_lock_recovery() {
   local cmd=("$@")
   local tf_log
@@ -40,10 +44,12 @@ import_if_missing() {
   local id="$2"
   if terraform state show "$addr" > /dev/null 2>&1; then
     echo "Already in state: $addr"
+    ALREADY_IN_STATE+=("$addr")
     return 0
   fi
   echo "Importing $addr <= $id"
   run_with_lock_recovery terraform import -lock-timeout="$LOCK_TIMEOUT" "$addr" "$id"
+  NEWLY_IMPORTED+=("$addr")
 }
 
 import_if_missing aws_iam_role.github_actions "${PREFIX}-github-actions" || true
@@ -65,3 +71,38 @@ LAYER_ARN="$(aws lambda list-layer-versions \
 if [ -n "${LAYER_ARN:-}" ] && [ "$LAYER_ARN" != "None" ]; then
   import_if_missing module.lambda.aws_lambda_layer_version.deps "$LAYER_ARN" || true
 fi
+
+# ---------------------------------------------------------------------------
+# Emit drift manifest so the caller can reason about state before apply.
+# ---------------------------------------------------------------------------
+build_json_array() {
+  # Accepts 0 or more arguments; returns a properly-escaped JSON array string.
+  # Uses jq -R/-s to handle any characters (quotes, backslashes, etc.) that
+  # appear in Terraform resource addresses such as:
+  #   module.lambda.aws_cloudwatch_log_group.lambda["health"]
+  if [ "$#" -eq 0 ]; then
+    printf '[]'
+    return
+  fi
+  printf '%s\n' "$@" | jq -R . | jq -sc .
+}
+
+# Expand arrays safely when set -u is active (empty array → zero args to function).
+if [ "${#ALREADY_IN_STATE[@]}" -gt 0 ]; then
+  AIS_JSON=$(build_json_array "${ALREADY_IN_STATE[@]}")
+else
+  AIS_JSON="[]"
+fi
+
+if [ "${#NEWLY_IMPORTED[@]}" -gt 0 ]; then
+  NI_JSON=$(build_json_array "${NEWLY_IMPORTED[@]}")
+else
+  NI_JSON="[]"
+fi
+
+MANIFEST_FILE="/tmp/drift-manifest.json"
+printf '{\n  "already_in_state": %s,\n  "newly_imported": %s\n}\n' \
+  "$AIS_JSON" "$NI_JSON" > "$MANIFEST_FILE"
+
+echo "Drift manifest written to ${MANIFEST_FILE}:"
+cat "$MANIFEST_FILE"
