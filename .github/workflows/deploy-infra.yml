@@ -90,41 +90,25 @@ jobs:
             echo "No existing state at ${SOURCE_KEY} – skipping backup."
           fi
 
-      # Exit codes: 0 = no changes (skip apply), 1 = error, 2 = changes pending (run apply)
+      # Always plan then apply so every run reconciles live AWS state with the
+      # configuration, even when Terraform detects no drift.
       - name: Terraform plan
-        id: plan
         run: |
           set -euo pipefail
           TF_ARGS=(
-            -detailed-exitcode
             -out=tfplan
             -var="environment=${{ inputs.environment }}"
             -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}"
             -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
           )
           [ -n "${{ inputs.tfvars_file }}" ] && TF_ARGS+=("-var-file=${{ inputs.tfvars_file }}")
-          set +e
           terraform plan "${TF_ARGS[@]}"
-          PLAN_EXIT=$?
-          set -e
-          if [ "$PLAN_EXIT" -eq 1 ]; then
-            echo "Terraform plan failed."
-            exit 1
-          fi
-          echo "plan_exit=${PLAN_EXIT}" >> "$GITHUB_OUTPUT"
-          if [ "$PLAN_EXIT" -eq 0 ]; then
-            echo "No changes detected – skipping apply."
-          else
-            echo "Changes detected – apply will run."
-          fi
 
       - name: Terraform apply
-        if: ${{ steps.plan.outputs.plan_exit == '2' }}
         run: terraform apply -auto-approve tfplan
 
-      # Validate that key outputs are non-empty after a successful apply.
+      # Validate that key outputs are non-empty after every apply.
       - name: Validate Terraform outputs
-        if: ${{ steps.plan.outputs.plan_exit == '2' }}
         run: |
           set -euo pipefail
           check_output() {
