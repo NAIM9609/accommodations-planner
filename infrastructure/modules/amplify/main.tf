@@ -1,3 +1,14 @@
+terraform {
+  required_version = ">= 1.7"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
 resource "aws_amplify_app" "frontend" {
   name         = "${var.prefix}-frontend"
   repository   = "https://github.com/${var.github_repo}"
