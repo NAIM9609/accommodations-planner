@@ -54,12 +54,12 @@ on:
         type: string
         default: '5m'
       lockfile_wait_timeout_seconds:
-        description: Max seconds to wait for an existing S3 Terraform lockfile to clear before running imports/plan.
+        description: Max seconds to wait for an existing Terraform state lock to clear before running imports/plan.
         required: false
         type: string
         default: '900'
       lockfile_wait_poll_seconds:
-        description: Poll interval in seconds while waiting for the S3 Terraform lockfile to clear.
+        description: Poll interval in seconds while waiting for the Terraform state lock to clear.
         required: false
         type: string
         default: '15'
@@ -97,6 +97,7 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: '1.7.5'
+          terraform_wrapper: false
 
       - name: Verify S3 backend is configured
         run: |
@@ -126,30 +127,52 @@ jobs:
       - name: Select workspace
         run: terraform workspace select -or-create ${{ inputs.environment }}
 
-      - name: Wait for Terraform S3 lockfile to clear
+      - name: Wait for Terraform DynamoDB lock to clear
         run: |
           set -euo pipefail
-          BUCKET="accommodations-planner-tf-state"
-          STATE_KEY="env:/${{ inputs.environment }}/accommodations-planner/${{ inputs.backend_key }}"
-          LOCK_KEY="${STATE_KEY}.tflock"
+          LOCK_TABLE="accommodations-planner-tf-lock"
+          STATE_PATH="accommodations-planner-tf-state/env:/${{ inputs.environment }}/accommodations-planner/${{ inputs.backend_key }}"
           TIMEOUT_SECONDS="${{ inputs.lockfile_wait_timeout_seconds }}"
           POLL_SECONDS="${{ inputs.lockfile_wait_poll_seconds }}"
           ELAPSED=0
 
-          echo "Checking S3 lockfile: s3://${BUCKET}/${LOCK_KEY}"
-          while aws s3api head-object --bucket "$BUCKET" --key "$LOCK_KEY" >/dev/null 2>&1; do
+          echo "Checking DynamoDB lock table '${LOCK_TABLE}' for state path '${STATE_PATH}'"
+          while [ "$(aws dynamodb scan \
+            --table-name "$LOCK_TABLE" \
+            --filter-expression "contains(Info, :statePath)" \
+            --expression-attribute-values '{":statePath":{"S":"'"$STATE_PATH"'"}}' \
+            --query 'Count' \
+            --output text)" != "0" ]; do
             if [ "$ELAPSED" -ge "$TIMEOUT_SECONDS" ]; then
-              echo "Timed out after ${TIMEOUT_SECONDS}s waiting for Terraform lockfile to clear."
+              echo "Timed out after ${TIMEOUT_SECONDS}s waiting for Terraform lock to clear."
+              aws dynamodb scan \
+                --table-name "$LOCK_TABLE" \
+                --filter-expression "contains(Info, :statePath)" \
+                --expression-attribute-values '{":statePath":{"S":"'"$STATE_PATH"'"}}' \
+                --query 'Items[*].Info.S' \
+                --output text || true
               exit 1
             fi
-            echo "Terraform lockfile still present. Waiting ${POLL_SECONDS}s... (${ELAPSED}/${TIMEOUT_SECONDS}s)"
+            echo "Terraform lock still present. Waiting ${POLL_SECONDS}s... (${ELAPSED}/${TIMEOUT_SECONDS}s)"
             sleep "$POLL_SECONDS"
             ELAPSED=$((ELAPSED + POLL_SECONDS))
           done
-          echo "No active Terraform lockfile found. Proceeding."
+          echo "No active Terraform lock found. Proceeding."
+
+      - name: Decide whether import is needed
+        id: import_decision
+        run: |
+          set -euo pipefail
+          if terraform state list | grep -q '.'; then
+            echo "Existing Terraform state detected; skipping imports for untouched resources."
+            echo "should_import=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Terraform state is empty; imports are needed to adopt existing resources."
+            echo "should_import=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Import existing resources into state
-        if: ${{ inputs.import_existing_resources }}
+        if: ${{ inputs.import_existing_resources && steps.import_decision.outputs.should_import == 'true' }}
         env:
           TF_INPUT: "0"
           TF_VAR_environment: ${{ inputs.environment }}

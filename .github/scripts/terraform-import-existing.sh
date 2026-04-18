@@ -11,6 +11,12 @@ LOCK_RETRY_DELAY_SECONDS="${TF_LOCK_RETRY_DELAY_SECONDS:-20}"
 # Accumulators for the drift manifest written at the end of this script.
 ALREADY_IN_STATE=()
 NEWLY_IMPORTED=()
+NOT_FOUND_IN_AWS=()
+
+aws_value_exists() {
+  local value="$1"
+  [ -n "$value" ] && [ "$value" != "None" ] && [ "$value" != "null" ]
+}
 
 lock_age_seconds() {
   local created_raw="$1"
@@ -30,9 +36,15 @@ run_with_lock_recovery() {
 
   while [ "$attempt" -le "$LOCK_RETRY_ATTEMPTS" ]; do
     local tf_log
+    local cmd_status
     tf_log="$(mktemp)"
 
-    if "${cmd[@]}" 2> >(tee "$tf_log" >&2); then
+    set +e
+    "${cmd[@]}" 2>&1 | tee "$tf_log"
+    cmd_status=${PIPESTATUS[0]}
+    set -e
+
+    if [ "$cmd_status" -eq 0 ]; then
       rm -f "$tf_log"
       return 0
     fi
@@ -124,16 +136,89 @@ import_if_missing() {
   NEWLY_IMPORTED+=("$addr")
 }
 
-import_if_missing aws_iam_role.github_actions "${PREFIX}-github-actions"
-import_if_missing aws_iam_role_policy.github_actions "${PREFIX}-github-actions:${PREFIX}-github-actions-policy"
-import_if_missing module.dynamodb.aws_dynamodb_table.reservations "${PREFIX}-reservations"
-import_if_missing module.lambda.aws_iam_role.lambda "${PREFIX}-lambda-role"
-import_if_missing module.lambda.aws_iam_role_policy.lambda_dynamodb "${PREFIX}-lambda-role:${PREFIX}-lambda-dynamodb"
-import_if_missing module.lambda.aws_iam_role_policy_attachment.lambda_basic "${PREFIX}-lambda-role/arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-import_if_missing 'module.lambda.aws_cloudwatch_log_group.lambda["health"]' "/aws/lambda/${PREFIX}-health"
-import_if_missing 'module.lambda.aws_cloudwatch_log_group.lambda["reservations"]' "/aws/lambda/${PREFIX}-reservations"
-import_if_missing module.lambda.aws_lambda_function.health "${PREFIX}-health"
-import_if_missing module.lambda.aws_lambda_function.reservations "${PREFIX}-reservations"
+if aws iam get-role --role-name "${PREFIX}-github-actions" >/dev/null 2>&1; then
+  import_if_missing aws_iam_role.github_actions "${PREFIX}-github-actions"
+else
+  echo "AWS resource not found, skipping import: aws_iam_role.github_actions"
+  NOT_FOUND_IN_AWS+=("aws_iam_role.github_actions")
+fi
+
+if aws iam get-role-policy --role-name "${PREFIX}-github-actions" --policy-name "${PREFIX}-github-actions-policy" >/dev/null 2>&1; then
+  import_if_missing aws_iam_role_policy.github_actions "${PREFIX}-github-actions:${PREFIX}-github-actions-policy"
+else
+  echo "AWS resource not found, skipping import: aws_iam_role_policy.github_actions"
+  NOT_FOUND_IN_AWS+=("aws_iam_role_policy.github_actions")
+fi
+
+if aws dynamodb describe-table --table-name "${PREFIX}-reservations" --region "$REGION" >/dev/null 2>&1; then
+  import_if_missing module.dynamodb.aws_dynamodb_table.reservations "${PREFIX}-reservations"
+else
+  echo "AWS resource not found, skipping import: module.dynamodb.aws_dynamodb_table.reservations"
+  NOT_FOUND_IN_AWS+=("module.dynamodb.aws_dynamodb_table.reservations")
+fi
+
+if aws iam get-role --role-name "${PREFIX}-lambda-role" >/dev/null 2>&1; then
+  import_if_missing module.lambda.aws_iam_role.lambda "${PREFIX}-lambda-role"
+else
+  echo "AWS resource not found, skipping import: module.lambda.aws_iam_role.lambda"
+  NOT_FOUND_IN_AWS+=("module.lambda.aws_iam_role.lambda")
+fi
+
+if aws iam get-role-policy --role-name "${PREFIX}-lambda-role" --policy-name "${PREFIX}-lambda-dynamodb" >/dev/null 2>&1; then
+  import_if_missing module.lambda.aws_iam_role_policy.lambda_dynamodb "${PREFIX}-lambda-role:${PREFIX}-lambda-dynamodb"
+else
+  echo "AWS resource not found, skipping import: module.lambda.aws_iam_role_policy.lambda_dynamodb"
+  NOT_FOUND_IN_AWS+=("module.lambda.aws_iam_role_policy.lambda_dynamodb")
+fi
+
+ATTACHED_BASIC_POLICY="$(aws iam list-attached-role-policies \
+  --role-name "${PREFIX}-lambda-role" \
+  --query "AttachedPolicies[?PolicyArn=='arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'].PolicyArn | [0]" \
+  --output text 2>/dev/null || true)"
+if aws_value_exists "$ATTACHED_BASIC_POLICY"; then
+  import_if_missing module.lambda.aws_iam_role_policy_attachment.lambda_basic "${PREFIX}-lambda-role/arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+else
+  echo "AWS resource not found, skipping import: module.lambda.aws_iam_role_policy_attachment.lambda_basic"
+  NOT_FOUND_IN_AWS+=("module.lambda.aws_iam_role_policy_attachment.lambda_basic")
+fi
+
+HEALTH_LOG_GROUP="$(aws logs describe-log-groups \
+  --region "$REGION" \
+  --log-group-name-prefix "/aws/lambda/${PREFIX}-health" \
+  --query "logGroups[?logGroupName=='/aws/lambda/${PREFIX}-health'].logGroupName | [0]" \
+  --output text 2>/dev/null || true)"
+if aws_value_exists "$HEALTH_LOG_GROUP"; then
+  import_if_missing 'module.lambda.aws_cloudwatch_log_group.lambda["health"]' "/aws/lambda/${PREFIX}-health"
+else
+  echo "AWS resource not found, skipping import: module.lambda.aws_cloudwatch_log_group.lambda[\"health\"]"
+  NOT_FOUND_IN_AWS+=("module.lambda.aws_cloudwatch_log_group.lambda[\"health\"]")
+fi
+
+RESERVATIONS_LOG_GROUP="$(aws logs describe-log-groups \
+  --region "$REGION" \
+  --log-group-name-prefix "/aws/lambda/${PREFIX}-reservations" \
+  --query "logGroups[?logGroupName=='/aws/lambda/${PREFIX}-reservations'].logGroupName | [0]" \
+  --output text 2>/dev/null || true)"
+if aws_value_exists "$RESERVATIONS_LOG_GROUP"; then
+  import_if_missing 'module.lambda.aws_cloudwatch_log_group.lambda["reservations"]' "/aws/lambda/${PREFIX}-reservations"
+else
+  echo "AWS resource not found, skipping import: module.lambda.aws_cloudwatch_log_group.lambda[\"reservations\"]"
+  NOT_FOUND_IN_AWS+=("module.lambda.aws_cloudwatch_log_group.lambda[\"reservations\"]")
+fi
+
+if aws lambda get-function --function-name "${PREFIX}-health" --region "$REGION" >/dev/null 2>&1; then
+  import_if_missing module.lambda.aws_lambda_function.health "${PREFIX}-health"
+else
+  echo "AWS resource not found, skipping import: module.lambda.aws_lambda_function.health"
+  NOT_FOUND_IN_AWS+=("module.lambda.aws_lambda_function.health")
+fi
+
+if aws lambda get-function --function-name "${PREFIX}-reservations" --region "$REGION" >/dev/null 2>&1; then
+  import_if_missing module.lambda.aws_lambda_function.reservations "${PREFIX}-reservations"
+else
+  echo "AWS resource not found, skipping import: module.lambda.aws_lambda_function.reservations"
+  NOT_FOUND_IN_AWS+=("module.lambda.aws_lambda_function.reservations")
+fi
 
 LAYER_ARN="$(aws lambda list-layer-versions \
   --region "$REGION" \
@@ -142,6 +227,9 @@ LAYER_ARN="$(aws lambda list-layer-versions \
   --output text 2>/dev/null || true)"
 if [ -n "${LAYER_ARN:-}" ] && [ "$LAYER_ARN" != "None" ]; then
   import_if_missing module.lambda.aws_lambda_layer_version.deps "$LAYER_ARN"
+else
+  echo "AWS resource not found, skipping import: module.lambda.aws_lambda_layer_version.deps"
+  NOT_FOUND_IN_AWS+=("module.lambda.aws_lambda_layer_version.deps")
 fi
 
 # ---------------------------------------------------------------------------
@@ -172,9 +260,15 @@ else
   NI_JSON="[]"
 fi
 
+if [ "${#NOT_FOUND_IN_AWS[@]}" -gt 0 ]; then
+  NFA_JSON=$(build_json_array "${NOT_FOUND_IN_AWS[@]}")
+else
+  NFA_JSON="[]"
+fi
+
 MANIFEST_FILE="/tmp/drift-manifest.json"
-printf '{\n  "already_in_state": %s,\n  "newly_imported": %s\n}\n' \
-  "$AIS_JSON" "$NI_JSON" > "$MANIFEST_FILE"
+printf '{\n  "already_in_state": %s,\n  "newly_imported": %s,\n  "not_found_in_aws": %s\n}\n' \
+  "$AIS_JSON" "$NI_JSON" "$NFA_JSON" > "$MANIFEST_FILE"
 
 echo "Drift manifest written to ${MANIFEST_FILE}:"
 cat "$MANIFEST_FILE"
