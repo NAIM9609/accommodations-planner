@@ -91,21 +91,11 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# API Gateway v2 HTTP API
+# NOTE: API Gateway v2 (HTTP API) is intentionally excluded from this smoke
+# test because LocalStack Community Edition does not support the apigatewayv2
+# service. The api_gateway Terraform module is validated separately via
+# `terraform validate` and tflint in the infra-validate.yml workflow.
 # ---------------------------------------------------------------------------
-echo "--- API Gateway ---"
-API_COUNT=$(aws_local apigatewayv2 get-apis \
-  --query "length(Items[?Name=='${PREFIX}-api'])" \
-  --output text 2>/dev/null || echo "0")
-
-if [ "${API_COUNT:-0}" -eq 1 ]; then
-  check_pass "API Gateway HTTP API ${PREFIX}-api exists (count=1)"
-elif [ "${API_COUNT:-0}" -gt 1 ]; then
-  echo "[WARN] API Gateway HTTP API ${PREFIX}-api found ${API_COUNT} times (expected 1)"
-  check_pass "API Gateway HTTP API ${PREFIX}-api exists (count=${API_COUNT}, expected 1)"
-else
-  check_fail "API Gateway HTTP API ${PREFIX}-api not found (count=${API_COUNT:-0})"
-fi
 
 # ---------------------------------------------------------------------------
 # Summary
