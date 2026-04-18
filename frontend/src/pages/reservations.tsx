@@ -1,5 +1,5 @@
 import Head from 'next/head';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Layout from '../components/Layout';
 import ReservationForm from '../components/ReservationForm';
@@ -18,7 +18,7 @@ function ReservationsPage(): JSX.Element {
   const [creating, setCreating] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
-  const fetchReservations = async () => {
+  const fetchReservations = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -29,11 +29,11 @@ function ReservationsPage(): JSX.Element {
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     fetchReservations();
-  }, []);
+  }, [fetchReservations]);
 
   const handleCreate = async (input: CreateReservationInput) => {
     setCreating(true);
