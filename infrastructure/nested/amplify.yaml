@@ -1,0 +1,117 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Amplify frontend app with GitHub integration
+
+Parameters:
+  Prefix:
+    Type: String
+    Description: Resource name prefix (app-name-environment)
+  Environment:
+    Type: String
+    Description: Deployment environment
+    AllowedValues: [dev, prod]
+  GithubRepo:
+    Type: String
+    Description: GitHub repository in owner/repo format
+  GithubBranch:
+    Type: String
+    Description: GitHub branch to build from
+  GithubToken:
+    Type: String
+    NoEcho: true
+    Description: GitHub personal access token for Amplify
+  ApiBaseUrl:
+    Type: String
+    Description: API Gateway base URL
+  CustomDomainEnabled:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Enable custom domain association
+  CustomDomainName:
+    Type: String
+    Default: ""
+    Description: Custom domain name (e.g. example.com)
+  CustomDomainPrefix:
+    Type: String
+    Default: ""
+    Description: Subdomain prefix for custom domain
+
+Conditions:
+  IsCustomDomainEnabled: !Equals [!Ref CustomDomainEnabled, "true"]
+  IsProd: !Equals [!Ref Environment, prod]
+  HasCustomDomainPrefix: !Not [!Equals [!Ref CustomDomainPrefix, ""]]
+
+Resources:
+  AmplifyApp:
+    Type: AWS::Amplify::App
+    Properties:
+      Name: !Sub "${Prefix}-frontend"
+      Repository: !Sub "https://github.com/${GithubRepo}"
+      AccessToken: !Ref GithubToken
+      BuildSpec: |
+        version: 1
+        frontend:
+          phases:
+            preBuild:
+              commands:
+                - cd frontend
+                - npm ci
+            build:
+              commands:
+                - npm run build
+          artifacts:
+            baseDirectory: frontend/out
+            files:
+              - '**/*'
+          cache:
+            paths:
+              - frontend/node_modules/**/*
+      EnvironmentVariables:
+        - Name: NEXT_PUBLIC_API_BASE_URL
+          Value: !Ref ApiBaseUrl
+        - Name: NEXT_PUBLIC_STAGE
+          Value: !Ref Environment
+      CustomRules:
+        - Source: "/<*>"
+          Status: "404-200"
+          Target: "/404.html"
+
+  AmplifyBranch:
+    Type: AWS::Amplify::Branch
+    Properties:
+      AppId: !GetAtt AmplifyApp.AppId
+      BranchName: !Ref GithubBranch
+      Framework: Next.js - SSG
+      Stage: !If [IsProd, PRODUCTION, DEVELOPMENT]
+      EnvironmentVariables:
+        - Name: NEXT_PUBLIC_API_BASE_URL
+          Value: !Ref ApiBaseUrl
+        - Name: NEXT_PUBLIC_STAGE
+          Value: !Ref Environment
+
+  AmplifyDomainAssociation:
+    Type: AWS::Amplify::Domain
+    Condition: IsCustomDomainEnabled
+    Properties:
+      AppId: !GetAtt AmplifyApp.AppId
+      DomainName: !Ref CustomDomainName
+      SubDomainSettings:
+        - BranchName: !Ref GithubBranch
+          Prefix: !Ref CustomDomainPrefix
+
+Outputs:
+  AppUrl:
+    Description: Amplify app default domain URL
+    Value: !Sub "https://${GithubBranch}.${AmplifyApp.DefaultDomain}"
+  AppId:
+    Description: Amplify app ID
+    Value: !GetAtt AmplifyApp.AppId
+  CustomDomainUrl:
+    Description: Custom domain URL (empty if not enabled)
+    Value: !If
+      - IsCustomDomainEnabled
+      - !If
+        - HasCustomDomainPrefix
+        - !Sub "https://${CustomDomainPrefix}.${CustomDomainName}"
+        - !Sub "https://${CustomDomainName}"
+      - ""

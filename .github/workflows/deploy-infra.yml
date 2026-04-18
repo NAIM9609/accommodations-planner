@@ -7,12 +7,8 @@ on:
         description: Deployment environment (dev or prod)
         required: true
         type: string
-      backend_key:
-        description: S3 state key under accommodations-planner/ (e.g. dev.tfstate)
-        required: true
-        type: string
-      tfvars_file:
-        description: Optional tfvars filename in the infrastructure directory (e.g. prod.tfvars)
+      params_file:
+        description: Optional CloudFormation parameter file (e.g. params/prod.json)
         required: false
         type: string
         default: ''
@@ -31,14 +27,15 @@ permissions:
 
 jobs:
   deploy-infra:
-    name: Terraform Plan/Apply (${{ inputs.environment }})
+    name: CloudFormation Deploy (${{ inputs.environment }})
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     concurrency:
-      group: terraform-${{ inputs.environment }}
+      group: cloudformation-${{ inputs.environment }}
       cancel-in-progress: false
     env:
-      TF_IN_AUTOMATION: "true"
+      STACK_NAME: "accommodations-planner-${{ inputs.environment }}"
+      TEMPLATES_BUCKET: "accommodations-planner-cfn-templates"
     defaults:
       run:
         working-directory: infrastructure
@@ -52,78 +49,111 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.DEPLOY_AWS_REGION }}
 
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: '1.7.5'
-          terraform_wrapper: false
-
-      - name: Set up TFLint
-        uses: terraform-linters/setup-tflint@19a52fbac37dacb22a09518e4ef6ee234f2d4987 # v4.1.0
-        with:
-          tflint_version: v0.53.0
-
-      - name: Terraform preflight checks
-        run: bash ../scripts/validate-terraform-precommit.sh
-
-      - name: Terraform init
+      - name: Ensure templates S3 bucket exists
         run: |
-          terraform init \
-            -backend-config="bucket=accommodations-planner-tf-state" \
-            -backend-config="key=accommodations-planner/${{ inputs.backend_key }}" \
-            -backend-config="region=${{ secrets.DEPLOY_AWS_REGION }}" \
-            -backend-config="dynamodb_table=accommodations-planner-tf-lock" \
-            -backend-config="encrypt=true"
-
-      - name: Select Terraform workspace
-        run: terraform workspace select -or-create ${{ inputs.environment }}
-
-      - name: Back up Terraform state
-        run: |
-          TIMESTAMP="$(date -u '+%Y-%m-%dT%H-%M-%SZ')"
-          SOURCE_KEY="accommodations-planner/${{ inputs.backend_key }}"
-          BACKUP_KEY="accommodations-planner/backups/${TIMESTAMP}-${{ inputs.backend_key }}"
-          BUCKET="accommodations-planner-tf-state"
-          if aws s3api head-object --bucket "$BUCKET" --key "$SOURCE_KEY" > /dev/null 2>&1; then
-            aws s3 cp "s3://${BUCKET}/${SOURCE_KEY}" "s3://${BUCKET}/${BACKUP_KEY}"
-            echo "State backed up to s3://${BUCKET}/${BACKUP_KEY}"
-          else
-            echo "No existing state at ${SOURCE_KEY} – skipping backup."
+          if ! aws s3api head-bucket --bucket "$TEMPLATES_BUCKET" 2>/dev/null; then
+            aws s3api create-bucket \
+              --bucket "$TEMPLATES_BUCKET" \
+              --region "${{ secrets.DEPLOY_AWS_REGION }}"
+            aws s3api put-bucket-versioning \
+              --bucket "$TEMPLATES_BUCKET" \
+              --versioning-configuration Status=Enabled
+            aws s3api put-bucket-encryption \
+              --bucket "$TEMPLATES_BUCKET" \
+              --server-side-encryption-configuration '{
+                "Rules": [{"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}}]
+              }'
+            aws s3api put-public-access-block \
+              --bucket "$TEMPLATES_BUCKET" \
+              --public-access-block-configuration '{
+                "BlockPublicAcls": true,
+                "IgnorePublicAcls": true,
+                "BlockPublicPolicy": true,
+                "RestrictPublicBuckets": true
+              }'
           fi
 
-      # Always plan then apply so every run reconciles live AWS state with the
-      # configuration, even when Terraform detects no drift.
-      - name: Terraform plan
+      - name: Create placeholder Lambda artifacts
+        run: |
+          # Lambda function placeholder
+          mkdir -p /tmp/placeholders
+          echo 'exports.handler = async () => ({ statusCode: 200, body: "placeholder" });' > /tmp/placeholders/index.js
+          cd /tmp/placeholders && zip lambda-placeholder.zip index.js
+          # Lambda layer placeholder
+          mkdir -p /tmp/placeholders/nodejs
+          echo '{}' > /tmp/placeholders/nodejs/package.json
+          cd /tmp/placeholders && zip -r layer-placeholder.zip nodejs/
+          # Upload
+          aws s3 cp /tmp/placeholders/lambda-placeholder.zip "s3://${TEMPLATES_BUCKET}/placeholders/lambda-placeholder.zip"
+          aws s3 cp /tmp/placeholders/layer-placeholder.zip "s3://${TEMPLATES_BUCKET}/placeholders/layer-placeholder.zip"
+
+      - name: Upload nested templates to S3
+        run: |
+          aws s3 sync nested/ "s3://${TEMPLATES_BUCKET}/nested/" --delete
+
+      - name: Validate templates
         run: |
           set -euo pipefail
-          TF_ARGS=(
-            -out=tfplan
-            -var="environment=${{ inputs.environment }}"
-            -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}"
-            -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
-          )
-          [ -n "${{ inputs.tfvars_file }}" ] && TF_ARGS+=("-var-file=${{ inputs.tfvars_file }}")
-          terraform plan "${TF_ARGS[@]}"
+          echo "Validating root stack..."
+          aws cloudformation validate-template \
+            --template-body file://root-stack.yaml
+          for template in nested/*.yaml; do
+            echo "Validating ${template}..."
+            aws cloudformation validate-template \
+              --template-body "file://${template}"
+          done
 
-      - name: Terraform apply
-        run: terraform apply -auto-approve tfplan
+      - name: Build parameter overrides
+        id: params
+        run: |
+          set -euo pipefail
+          OVERRIDES="Environment=${{ inputs.environment }}"
+          OVERRIDES="${OVERRIDES} AmplifyGithubToken=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
+          OVERRIDES="${OVERRIDES} TemplatesBucketName=${TEMPLATES_BUCKET}"
+          OVERRIDES="${OVERRIDES} PlaceholderBucket=${TEMPLATES_BUCKET}"
 
-      # Validate that key outputs are non-empty after every apply.
-      - name: Validate Terraform outputs
+          # Merge parameter file overrides if provided
+          if [ -n "${{ inputs.params_file }}" ] && [ -f "${{ inputs.params_file }}" ]; then
+            while IFS= read -r line; do
+              key=$(echo "$line" | jq -r '.ParameterKey')
+              value=$(echo "$line" | jq -r '.ParameterValue')
+              if [ "$key" != "null" ] && [ "$value" != "null" ]; then
+                OVERRIDES="${OVERRIDES} ${key}=${value}"
+              fi
+            done < <(jq -c '.[]' "${{ inputs.params_file }}")
+          fi
+
+          echo "overrides=${OVERRIDES}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy CloudFormation stack
+        run: |
+          set -euo pipefail
+          aws cloudformation deploy \
+            --template-file root-stack.yaml \
+            --stack-name "${STACK_NAME}" \
+            --parameter-overrides ${{ steps.params.outputs.overrides }} \
+            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+            --no-fail-on-empty-changeset \
+            --tags \
+              Project=accommodations-planner \
+              Environment=${{ inputs.environment }} \
+              ManagedBy=cloudformation
+
+      - name: Validate CloudFormation outputs
         run: |
           set -euo pipefail
           check_output() {
             local name="$1"
             local value
-            value="$(terraform output -raw "${name}" 2>/dev/null || true)"
-            if [ -z "${value}" ]; then
-              echo "ERROR: Terraform output '${name}' is empty or missing."
+            value="$(aws cloudformation describe-stacks \
+              --stack-name "${STACK_NAME}" \
+              --query "Stacks[0].Outputs[?OutputKey=='${name}'].OutputValue" \
+              --output text 2>/dev/null || true)"
+            if [ -z "${value}" ] || [ "${value}" = "None" ]; then
+              echo "ERROR: CloudFormation output '${name}' is empty or missing."
               exit 1
             fi
             echo "Output '${name}' = ${value}"
           }
-          check_output "api_url"
-          check_output "dynamodb_table_name"
-
-      - name: Clean up plan file
-        if: always()
-        run: rm -f tfplan
+          check_output "ApiUrl"
+          check_output "DynamoDBTableName"

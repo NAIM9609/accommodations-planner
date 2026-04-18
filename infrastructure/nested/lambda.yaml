@@ -1,0 +1,169 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Lambda functions, layer, execution role, and log groups
+
+Parameters:
+  Prefix:
+    Type: String
+    Description: Resource name prefix (app-name-environment)
+  Environment:
+    Type: String
+    Description: Deployment environment
+    AllowedValues: [dev, prod]
+  DynamoDBTableArn:
+    Type: String
+    Description: ARN of the DynamoDB reservations table
+  DynamoDBTableName:
+    Type: String
+    Description: Name of the DynamoDB reservations table
+  AmplifyBranch:
+    Type: String
+    Description: Amplify branch name for CORS origin patterns
+  CustomDomainUrl:
+    Type: String
+    Default: ""
+    Description: Custom domain URL for CORS
+  CorsAllowedOrigins:
+    Type: String
+    Default: ""
+    Description: Comma-separated additional CORS origins
+  ReservedConcurrency:
+    Type: Number
+    Default: -1
+    Description: Reserved concurrency per Lambda (-1 for unreserved)
+  LogRetentionDays:
+    Type: Number
+    Default: 3
+    AllowedValues: [1, 3, 5, 7, 14, 30]
+    Description: CloudWatch log retention in days
+  PlaceholderBucket:
+    Type: String
+    Description: S3 bucket containing placeholder Lambda code zip
+  PlaceholderKey:
+    Type: String
+    Default: placeholders/lambda-placeholder.zip
+    Description: S3 key for the placeholder Lambda code zip
+  PlaceholderLayerKey:
+    Type: String
+    Default: placeholders/layer-placeholder.zip
+    Description: S3 key for the placeholder Lambda layer zip
+
+Conditions:
+  HasReservedConcurrency: !Not [!Equals [!Ref ReservedConcurrency, -1]]
+
+Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${Prefix}-lambda-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: !Sub "${Prefix}-lambda-dynamodb"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                Resource: !Ref DynamoDBTableArn
+
+  DepsLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      LayerName: !Sub "${Prefix}-deps"
+      CompatibleRuntimes:
+        - nodejs20.x
+      Content:
+        S3Bucket: !Ref PlaceholderBucket
+        S3Key: !Ref PlaceholderLayerKey
+
+  HealthFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${Prefix}-health"
+      Runtime: nodejs20.x
+      Handler: handlers/health.handler
+      Timeout: 10
+      MemorySize: 128
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Layers:
+        - !Ref DepsLayer
+      ReservedConcurrentExecutions: !If
+        - HasReservedConcurrency
+        - !Ref ReservedConcurrency
+        - !Ref AWS::NoValue
+      Code:
+        S3Bucket: !Ref PlaceholderBucket
+        S3Key: !Ref PlaceholderKey
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          AMPLIFY_BRANCH: !Ref AmplifyBranch
+          CUSTOM_DOMAIN_URL: !Ref CustomDomainUrl
+          CORS_ALLOWED_ORIGINS: !Ref CorsAllowedOrigins
+
+  ReservationsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${Prefix}-reservations"
+      Runtime: nodejs20.x
+      Handler: handlers/reservations.handler
+      Timeout: 10
+      MemorySize: 128
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Layers:
+        - !Ref DepsLayer
+      ReservedConcurrentExecutions: !If
+        - HasReservedConcurrency
+        - !Ref ReservedConcurrency
+        - !Ref AWS::NoValue
+      Code:
+        S3Bucket: !Ref PlaceholderBucket
+        S3Key: !Ref PlaceholderKey
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          DYNAMODB_TABLE_NAME: !Ref DynamoDBTableName
+          AMPLIFY_BRANCH: !Ref AmplifyBranch
+          CUSTOM_DOMAIN_URL: !Ref CustomDomainUrl
+          CORS_ALLOWED_ORIGINS: !Ref CorsAllowedOrigins
+
+  HealthLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${Prefix}-health"
+      RetentionInDays: !Ref LogRetentionDays
+
+  ReservationsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${Prefix}-reservations"
+      RetentionInDays: !Ref LogRetentionDays
+
+Outputs:
+  HealthLambdaArn:
+    Description: Health Lambda function ARN
+    Value: !GetAtt HealthFunction.Arn
+  HealthLambdaName:
+    Description: Health Lambda function name
+    Value: !Ref HealthFunction
+  ReservationsLambdaArn:
+    Description: Reservations Lambda function ARN
+    Value: !GetAtt ReservationsFunction.Arn
+  ReservationsLambdaName:
+    Description: Reservations Lambda function name
+    Value: !Ref ReservationsFunction
+  LambdaRoleArn:
+    Description: Lambda execution role ARN
+    Value: !GetAtt LambdaExecutionRole.Arn
