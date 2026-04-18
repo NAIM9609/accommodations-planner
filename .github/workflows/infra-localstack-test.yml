@@ -39,7 +39,7 @@ jobs:
             http://localhost:14566/_localstack/health > /dev/null
           echo "LocalStack is healthy."
 
-      - uses: hashicorp/setup-terraform@b9cd54531c595e3a53f1ca38e3e2b3d8bfef3982 # v3.2.0
+      - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: '1.7.5'
 

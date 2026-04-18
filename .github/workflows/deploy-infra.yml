@@ -84,7 +84,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.DEPLOY_AWS_REGION }}
 
-      - uses: hashicorp/setup-terraform@b9cd54531c595e3a53f1ca38e3e2b3d8bfef3982 # v3.2.0
+      - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: '1.7.5'
 
