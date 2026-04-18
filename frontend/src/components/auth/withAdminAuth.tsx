@@ -1,13 +1,22 @@
 import { useRouter } from 'next/router';
-import type { ComponentType } from 'react';
+import { useEffect, type ComponentType } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function withAdminAuth<P extends object>(
   WrappedComponent: ComponentType<P>,
 ): ComponentType<P> {
+
+  const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+
+    // If already authenticated, redirect immediately
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace(`/login?returnTo=${encodeURIComponent(router.asPath)}`);
+    }
+  }, [isAuthenticated, isLoading, router]);
+  
   function AdminAuthGuard(props: P): JSX.Element | null {
-    const { isAuthenticated, isLoading } = useAuth();
-    const router = useRouter();
 
     if (isLoading) {
       return (
@@ -25,13 +34,6 @@ export default function withAdminAuth<P extends object>(
           <p style={{ color: 'var(--lux-muted)', fontSize: '1rem' }}>Loading…</p>
         </div>
       );
-    }
-
-    if (!isAuthenticated) {
-      if (typeof window !== 'undefined') {
-        router.replace(`/login?returnTo=${encodeURIComponent(router.asPath)}`);
-      }
-      return null;
     }
 
     return <WrappedComponent {...props} />;

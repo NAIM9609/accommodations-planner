@@ -24,9 +24,19 @@ async function authHeaders(): Promise<Record<string, string>> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+class UnauthorizedRedirectError extends Error {
+  constructor() {
+    super('Unauthorized: redirecting to login');
+    this.name = 'UnauthorizedRedirectError';
+  }
+}
+
 function handleUnauthorized(res: Response): void {
-  if (res.status === 401 && typeof window !== 'undefined') {
-    window.location.href = `/login?returnTo=${encodeURIComponent(window.location.pathname)}`;
+  if (res.status === 401) {
+    if (typeof window !== 'undefined') {
+      window.location.href = `/login?returnTo=${encodeURIComponent(window.location.pathname)}`;
+    }
+    throw new UnauthorizedRedirectError();
   }
 }
 

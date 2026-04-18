@@ -21,8 +21,6 @@ Resources:
       DeletionProtection: !If [IsProd, ACTIVE, INACTIVE]
       UsernameAttributes:
         - email
-      AliasAttributes:
-        - email
       AutoVerifiedAttributes:
         - email
       Policies:

@@ -35,7 +35,6 @@ export default function LoginPage(): JSX.Element {
     setSubmitting(true);
     try {
       await login(email, password);
-      router.push(returnTo);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message || t('auth.errorGeneric'));
