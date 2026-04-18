@@ -106,9 +106,10 @@ jobs:
           set -euo pipefail
           # terraform -replace requires individual resource instance addresses, not module paths.
           # Query the current state to collect every address under the three target modules.
-          # Exit code 0 on empty state, non-zero only on auth/backend errors – those should fail fast.
-          terraform state list > /tmp/tf_state_all.txt
-          grep -E '^module\.(lambda|api_gateway|amplify)\.' /tmp/tf_state_all.txt \
+          # Auth/backend errors from terraform state list propagate via set -e + pipefail.
+          # grep exit-1 (no matching lines) is suppressed intentionally – empty state is valid.
+          terraform state list \
+            | grep -E '^module\.(lambda|api_gateway|amplify)\.' \
             > /tmp/replace_targets.txt || true
           echo "Resources to force-replace:"
           if [ -s /tmp/replace_targets.txt ]; then
