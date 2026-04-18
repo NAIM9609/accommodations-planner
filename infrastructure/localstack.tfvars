@@ -4,12 +4,15 @@
 #
 # Usage in CI (see .github/workflows/infra-localstack-test.yml):
 #   terraform plan  -var-file=localstack.tfvars -target=module.dynamodb \
-#                   -target=module.lambda -target=module.api_gateway \
+#                   -target=module.lambda \
 #                   -out=localstack.tfplan
 #   terraform apply localstack.tfplan
 #
 # Amplify is not available in LocalStack Community Edition.
-# The -target flags above exclude the amplify module from the plan/apply.
+# module.api_gateway uses aws_apigatewayv2_* (HTTP API v2) which is also
+# not available in LocalStack Community Edition.  Both modules are excluded
+# via -target flags above.  The api_gateway module is tested separately by
+# `terraform test` with mock_provider in infrastructure/tests/api_gateway.tftest.hcl.
 # amplify_github_token is still required by the root variable declaration;
 # the value below is a harmless placeholder used only for validation.
 
