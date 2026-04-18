@@ -43,5 +43,12 @@ variable "reserved_concurrency" {
 }
 
 variable "log_retention_days" {
-  type = number
+  description = "CloudWatch log retention for Lambda logs"
+  type        = number
+  default     = 3
+
+  validation {
+    condition     = contains([1, 3, 5, 7, 14, 30], var.log_retention_days)
+    error_message = "log_retention_days must be one of: 1, 3, 5, 7, 14, 30."
+  }
 }

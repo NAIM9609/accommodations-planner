@@ -30,6 +30,48 @@ variable "github_branch" {
   default     = "master"
 }
 
+variable "amplify_github_token" {
+  description = "GitHub personal access token for Amplify (stored in GitHub Actions secret AMPLIFY_GITHUB_TOKEN)"
+  type        = string
+  sensitive   = true
+}
+
+# ── Per-environment tunables (override via .tfvars, defaults live in modules) ─
+
+variable "lambda_reserved_concurrency" {
+  description = "Reserved concurrency per Lambda function. Use -1 for unreserved (default)."
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.lambda_reserved_concurrency == null || var.lambda_reserved_concurrency == -1 || var.lambda_reserved_concurrency >= 0
+    error_message = "lambda_reserved_concurrency must be -1 (unreserved) or a non-negative number."
+  }
+}
+
+variable "cloudwatch_log_retention_days" {
+  description = "CloudWatch log retention for Lambda logs"
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.cloudwatch_log_retention_days == null || contains([1, 3, 5, 7, 14, 30], var.cloudwatch_log_retention_days)
+    error_message = "cloudwatch_log_retention_days must be one of: 1, 3, 5, 7, 14, 30."
+  }
+}
+
+variable "api_throttle_rate_limit" {
+  description = "Steady-state API Gateway stage rate limit (requests/second)"
+  type        = number
+  default     = null
+}
+
+variable "api_throttle_burst_limit" {
+  description = "API Gateway stage burst limit"
+  type        = number
+  default     = null
+}
+
 variable "amplify_custom_domain_enabled" {
   description = "Enable Amplify custom domain association"
   type        = bool
@@ -40,6 +82,7 @@ variable "amplify_custom_domain_name" {
   description = "Custom domain to attach to Amplify (for example: example.com)"
   type        = string
   default     = ""
+
   validation {
     condition = (
       length(trimspace(var.amplify_custom_domain_name)) == 0 ||
@@ -53,50 +96,6 @@ variable "amplify_custom_domain_prefix" {
   description = "Subdomain prefix for Amplify custom domain mapping (empty string for apex/root domain)"
   type        = string
   default     = ""
-}
-
-variable "lambda_reserved_concurrency" {
-  description = "Reserved concurrency per Lambda function. Use -1 for unreserved (default)."
-  type        = number
-  default     = -1
-  validation {
-    condition     = var.lambda_reserved_concurrency == -1 || var.lambda_reserved_concurrency >= 0
-    error_message = "lambda_reserved_concurrency must be -1 (unreserved) or a non-negative number."
-  }
-}
-
-variable "cloudwatch_log_retention_days" {
-  description = "CloudWatch log retention for Lambda logs"
-  type        = number
-  default     = 3
-  validation {
-    condition     = contains([1, 3, 5, 7, 14, 30], var.cloudwatch_log_retention_days)
-    error_message = "cloudwatch_log_retention_days must be one of: 1, 3, 5, 7, 14, 30."
-  }
-}
-
-variable "api_throttle_rate_limit" {
-  description = "Steady-state API Gateway stage rate limit (requests/second)"
-  type        = number
-  default     = 5
-}
-
-variable "api_throttle_burst_limit" {
-  description = "API Gateway stage burst limit"
-  type        = number
-  default     = 10
-}
-
-variable "cors_additional_allowed_origins" {
-  description = "Additional exact origins allowed for CORS (for example: https://app.example.com)"
-  type        = list(string)
-  default     = []
-}
-
-variable "amplify_github_token" {
-  description = "GitHub personal access token for Amplify (stored in GitHub Actions secret AMPLIFY_GITHUB_TOKEN)"
-  type        = string
-  sensitive   = true
 }
 
 variable "create_github_oidc_provider" {

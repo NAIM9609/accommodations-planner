@@ -30,11 +30,21 @@ variable "custom_domain_enabled" {
 }
 
 variable "custom_domain_name" {
-  type    = string
-  default = ""
+  description = "Custom domain to attach to Amplify (for example: example.com)"
+  type        = string
+  default     = ""
+
+  validation {
+    condition = (
+      length(trimspace(var.custom_domain_name)) == 0 ||
+      can(regex("^([a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,}$", var.custom_domain_name))
+    )
+    error_message = "custom_domain_name must be empty or a valid DNS hostname (for example: app.example.com)."
+  }
 }
 
 variable "custom_domain_prefix" {
-  type    = string
-  default = ""
+  description = "Subdomain prefix for Amplify custom domain mapping (empty string for apex/root domain)"
+  type        = string
+  default     = ""
 }

@@ -40,16 +40,16 @@ module "dynamodb" {
 }
 
 module "lambda" {
-  source               = "./modules/lambda"
-  prefix               = local.prefix
-  environment          = var.environment
-  dynamodb_table_arn   = module.dynamodb.table_arn
-  dynamodb_table_name  = module.dynamodb.table_name
-  amplify_branch       = var.github_branch
-  custom_domain_url    = local.amplify_custom_domain_url
-  cors_allowed_origins = var.cors_additional_allowed_origins
-  reserved_concurrency = var.lambda_reserved_concurrency
-  log_retention_days   = var.cloudwatch_log_retention_days
+  source              = "./modules/lambda"
+  prefix              = local.prefix
+  environment         = var.environment
+  dynamodb_table_arn  = module.dynamodb.table_arn
+  dynamodb_table_name = module.dynamodb.table_name
+  amplify_branch      = var.github_branch
+  custom_domain_url   = local.amplify_custom_domain_url
+
+  reserved_concurrency = coalesce(var.lambda_reserved_concurrency, -1)
+  log_retention_days   = coalesce(var.cloudwatch_log_retention_days, 3)
 }
 
 module "api_gateway" {
@@ -60,8 +60,9 @@ module "api_gateway" {
   health_lambda_name       = module.lambda.health_lambda_name
   reservations_lambda_arn  = module.lambda.reservations_lambda_arn
   reservations_lambda_name = module.lambda.reservations_lambda_name
-  throttle_rate_limit      = var.api_throttle_rate_limit
-  throttle_burst_limit     = var.api_throttle_burst_limit
+
+  throttle_rate_limit  = coalesce(var.api_throttle_rate_limit, 5)
+  throttle_burst_limit = coalesce(var.api_throttle_burst_limit, 10)
 }
 
 module "amplify" {
