@@ -102,6 +102,10 @@ jobs:
 
       # Plan only the core modules supported by LocalStack Community Edition.
       # Amplify is excluded with -target because it is not available locally.
+      # module.api_gateway is excluded because aws_apigatewayv2_* (HTTP API v2)
+      # is not available in LocalStack Community Edition.  The api_gateway module
+      # is fully covered by `terraform test` with mock_provider in
+      # infrastructure/tests/api_gateway.tftest.hcl, which runs in infra-validate.yml.
       # data.aws_caller_identity and the OIDC data source are only referenced
       # by root-level resources that are also excluded, so they are not evaluated.
       - name: Terraform plan (LocalStack)
@@ -110,7 +114,6 @@ jobs:
             -var-file=localstack.tfvars \
             -target=module.dynamodb \
             -target=module.lambda \
-            -target=module.api_gateway \
             -out=localstack.tfplan \
             -input=false
 
@@ -135,7 +138,6 @@ jobs:
             -var-file=localstack.tfvars \
             -target=module.dynamodb \
             -target=module.lambda \
-            -target=module.api_gateway \
             -input=false || true
 
       - name: Remove LocalStack overrides
