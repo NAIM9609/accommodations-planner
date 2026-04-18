@@ -8,6 +8,7 @@ on:
       - 'infrastructure/**'
       - '.github/workflows/infra-localstack-test.yml'
       - '.github/scripts/localstack-providers-override.tf'
+      - '.github/scripts/localstack-backend-override.tf'
       - '.github/scripts/localstack-post-apply-smoke.sh'
 
 permissions:
@@ -78,14 +79,23 @@ jobs:
         with:
           terraform_version: '1.7.5'
 
-      # Copy the provider override file into the infrastructure working directory.
-      # The file name ends in _override.tf so Terraform treats it as an override
-      # and merges it with the existing provider.tf configuration.
-      - name: Inject LocalStack provider override
-        run: cp ../.github/scripts/localstack-providers-override.tf localstack_override.tf
+      # Copy the provider and backend override files into the infrastructure
+      # working directory.  Both files end in _override.tf so Terraform treats
+      # them as overrides and merges them with the existing configuration:
+      #   localstack_override.tf         – redirects AWS calls to LocalStack
+      #   localstack_backend_override.tf – replaces the S3 backend with a local
+      #                                    one so no real S3 bucket is required
+      - name: Inject LocalStack provider and backend overrides
+        run: |
+          cp ../.github/scripts/localstack-providers-override.tf localstack_override.tf
+          cp ../.github/scripts/localstack-backend-override.tf localstack_backend_override.tf
 
-      - name: Terraform init (no backend)
-        run: terraform init -backend=false -input=false
+      # Use -reconfigure so Terraform re-initialises with the local backend
+      # supplied by localstack_backend_override.tf instead of the S3 backend
+      # declared in backend.tf.  Without this, terraform plan would detect the
+      # un-initialised S3 backend and abort with "Backend initialization required".
+      - name: Terraform init (local backend)
+        run: terraform init -reconfigure -input=false
 
       - name: Terraform validate
         run: terraform validate
@@ -128,9 +138,9 @@ jobs:
             -target=module.api_gateway \
             -input=false || true
 
-      - name: Remove LocalStack provider override
+      - name: Remove LocalStack overrides
         if: always()
-        run: rm -f localstack_override.tf localstack.tfplan
+        run: rm -f localstack_override.tf localstack_backend_override.tf localstack.tfplan terraform.tfstate terraform.tfstate.backup
 
       - name: Stop LocalStack
         if: always()
