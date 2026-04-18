@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BRAND } from '../lib/brand';
 import LanguageSwitcher from './LanguageSwitcher';
+import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
   children: ReactNode;
@@ -13,6 +14,7 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const router = useRouter();
   const { t } = useTranslation();
+  const { isAuthenticated, logout } = useAuth();
 
   const navLink = (href: string, label: string) => (
     <Link href={href} style={{
@@ -54,7 +56,29 @@ export default function Layout({ children }: LayoutProps) {
             </Link>
             <div className="site-nav__links">
               {navLink('/', t('nav.home'))}
-              {navLink('/reservations', t('nav.reservations'))}
+              {isAuthenticated ? navLink('/reservations', t('nav.reservations')) : null}
+              {isAuthenticated ? (
+                <button
+                  type="button"
+                  onClick={logout}
+                  style={{
+                    color: '#495a54',
+                    background: 'transparent',
+                    border: 'none',
+                    fontWeight: 500,
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    minHeight: '44px',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    fontSize: 'inherit',
+                  }}
+                >
+                  {t('auth.signOut')}
+                </button>
+              ) : (
+                navLink('/login', t('auth.signIn'))
+              )}
             </div>
             <LanguageSwitcher />
           </nav>

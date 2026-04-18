@@ -4,6 +4,17 @@
     "reservations": "Reservierungen",
     "skipToMain": "Zum Hauptinhalt springen"
   },
+  "auth": {
+    "pageTitle": "Admin-Anmeldung",
+    "heading": "Admin-Anmeldung",
+    "emailLabel": "E-Mail-Adresse",
+    "passwordLabel": "Passwort",
+    "signIn": "Anmelden",
+    "signingIn": "Anmeldung läuft…",
+    "signOut": "Abmelden",
+    "checkingSession": "Sitzung wird geprüft…",
+    "errorGeneric": "Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Zugangsdaten."
+  },
   "footer": {
     "allRightsReserved": "Alle Rechte vorbehalten."
   },

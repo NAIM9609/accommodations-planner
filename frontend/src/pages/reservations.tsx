@@ -8,6 +8,7 @@ import PageSectionHeader from '../components/ui/PageSectionHeader';
 import { Notice, StatusPanel } from '../components/ui/StatusPanel';
 import { getReservations, createReservation, deleteReservation, type Reservation, type CreateReservationInput } from '../lib/apiClient';
 import { BRAND } from '../lib/brand';
+import withAdminAuth from '../components/auth/withAdminAuth';
 
 function ReservationsPage(): JSX.Element {
   const { t } = useTranslation();
@@ -115,4 +116,4 @@ function ReservationsPage(): JSX.Element {
   );
 }
 
-export default ReservationsPage;
+export default withAdminAuth(ReservationsPage);

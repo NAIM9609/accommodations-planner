@@ -4,6 +4,17 @@
     "reservations": "Reservas",
     "skipToMain": "Ir al contenido principal"
   },
+  "auth": {
+    "pageTitle": "Inicio de sesión admin",
+    "heading": "Inicio de sesión admin",
+    "emailLabel": "Correo electrónico",
+    "passwordLabel": "Contraseña",
+    "signIn": "Iniciar sesión",
+    "signingIn": "Iniciando sesión…",
+    "signOut": "Cerrar sesión",
+    "checkingSession": "Verificando sesión…",
+    "errorGeneric": "Error de inicio de sesión. Verifica tus credenciales e inténtalo de nuevo."
+  },
   "footer": {
     "allRightsReserved": "Todos los derechos reservados."
   },

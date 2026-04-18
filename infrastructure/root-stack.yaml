@@ -97,6 +97,11 @@ Parameters:
     Default: "true"
     AllowedValues: ["true", "false"]
     Description: Deploy the IAM nested stack (disabling DELETES existing stack)
+  EnableCognito:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Deploy the Cognito nested stack (disabling DELETES existing stack)
 
 Rules:
   CustomDomainRequiresName:
@@ -121,6 +126,11 @@ Rules:
     Assertions:
       - Assert: !Equals [!Ref EnableApiGateway, "true"]
         AssertDescription: Amplify stack requires API Gateway stack to be enabled.
+  ApiGatewayRequiresCognito:
+    RuleCondition: !Equals [!Ref EnableApiGateway, "true"]
+    Assertions:
+      - Assert: !Equals [!Ref EnableCognito, "true"]
+        AssertDescription: API Gateway JWT authorizer requires the Cognito stack to be enabled.
 
 Resources:
   DynamoDBStack:
@@ -184,6 +194,8 @@ Resources:
         ReservationsLambdaName: !GetAtt LambdaStack.Outputs.ReservationsLambdaName
         ThrottleRateLimit: !Ref ApiThrottleRateLimit
         ThrottleBurstLimit: !Ref ApiThrottleBurstLimit
+        CognitoUserPoolArn: !GetAtt CognitoStack.Outputs.UserPoolArn
+        CognitoUserPoolClientId: !GetAtt CognitoStack.Outputs.UserPoolClientId
       Tags:
         - Key: Project
           Value: !Ref AppName
@@ -207,6 +219,8 @@ Resources:
         CustomDomainEnabled: !Ref AmplifyCustomDomainEnabled
         CustomDomainName: !Ref AmplifyCustomDomainName
         CustomDomainPrefix: !Ref AmplifyCustomDomainPrefix
+        CognitoUserPoolId: !GetAtt CognitoStack.Outputs.UserPoolId
+        CognitoUserPoolClientId: !GetAtt CognitoStack.Outputs.UserPoolClientId
       Tags:
         - Key: Project
           Value: !Ref AppName
@@ -232,6 +246,22 @@ Resources:
         - Key: ManagedBy
           Value: cloudformation
 
+  CognitoStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: DeployCognito
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucketName}.s3.amazonaws.com/${TemplatesPrefix}cognito.yaml"
+      Parameters:
+        Prefix: !Sub "${AppName}-${Environment}"
+        Environment: !Ref Environment
+      Tags:
+        - Key: Project
+          Value: !Ref AppName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: cloudformation
+
 Conditions:
   IsCustomDomainEnabled: !Equals [!Ref AmplifyCustomDomainEnabled, "true"]
   HasCustomDomainPrefix: !Not [!Equals [!Ref AmplifyCustomDomainPrefix, ""]]
@@ -240,6 +270,7 @@ Conditions:
   DeployApiGateway: !Equals [!Ref EnableApiGateway, "true"]
   DeployAmplify: !Equals [!Ref EnableAmplify, "true"]
   DeployIam: !Equals [!Ref EnableIam, "true"]
+  DeployCognito: !Equals [!Ref EnableCognito, "true"]
 
 Outputs:
   ApiUrl:
@@ -266,3 +297,11 @@ Outputs:
     Condition: DeployIam
     Description: IAM role ARN for GitHub Actions OIDC
     Value: !GetAtt IamStack.Outputs.GithubActionsRoleArn
+  CognitoUserPoolId:
+    Condition: DeployCognito
+    Description: Cognito User Pool ID
+    Value: !GetAtt CognitoStack.Outputs.UserPoolId
+  CognitoUserPoolClientId:
+    Condition: DeployCognito
+    Description: Cognito User Pool App Client ID
+    Value: !GetAtt CognitoStack.Outputs.UserPoolClientId

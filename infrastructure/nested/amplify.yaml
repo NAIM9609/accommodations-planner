@@ -41,6 +41,12 @@ Parameters:
     Type: String
     Default: ""
     Description: Subdomain prefix for custom domain
+  CognitoUserPoolId:
+    Type: String
+    Description: Cognito User Pool ID passed to the frontend as an env var
+  CognitoUserPoolClientId:
+    Type: String
+    Description: Cognito User Pool App Client ID passed to the frontend as an env var
 
 Conditions:
   IsCustomDomainEnabled: !Equals [!Ref CustomDomainEnabled, "true"]
@@ -77,6 +83,10 @@ Resources:
           Value: !Ref ApiBaseUrl
         - Name: NEXT_PUBLIC_STAGE
           Value: !Ref Environment
+        - Name: NEXT_PUBLIC_COGNITO_USER_POOL_ID
+          Value: !Ref CognitoUserPoolId
+        - Name: NEXT_PUBLIC_COGNITO_CLIENT_ID
+          Value: !Ref CognitoUserPoolClientId
       CustomRules:
         - Source: "/<*>"
           Status: "404-200"
@@ -94,6 +104,10 @@ Resources:
           Value: !Ref ApiBaseUrl
         - Name: NEXT_PUBLIC_STAGE
           Value: !Ref Environment
+        - Name: NEXT_PUBLIC_COGNITO_USER_POOL_ID
+          Value: !Ref CognitoUserPoolId
+        - Name: NEXT_PUBLIC_COGNITO_CLIENT_ID
+          Value: !Ref CognitoUserPoolClientId
 
   AmplifyDomainAssociation:
     Type: AWS::Amplify::Domain

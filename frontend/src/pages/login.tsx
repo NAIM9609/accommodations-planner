@@ -1,0 +1,196 @@
+import Head from 'next/head';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from '../contexts/AuthContext';
+import { BRAND } from '../lib/brand';
+
+export default function LoginPage(): JSX.Element {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const { isAuthenticated, isLoading, login } = useAuth();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  // If already authenticated, redirect immediately
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      const returnTo = typeof router.query.returnTo === 'string' ? router.query.returnTo : '/reservations';
+      router.replace(returnTo);
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      await login(email, password);
+      const returnTo = typeof router.query.returnTo === 'string' ? router.query.returnTo : '/reservations';
+      router.push(returnTo);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message || t('auth.errorGeneric'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--lux-sand)' }}>
+        <p style={{ color: 'var(--lux-muted)', fontSize: '1rem' }}>{t('auth.checkingSession')}</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Head>
+        <title>{`${t('auth.pageTitle')} | ${BRAND.fullName}`}</title>
+        <meta name="robots" content="noindex" />
+      </Head>
+
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--lux-sand)',
+        padding: '24px 16px',
+      }}>
+        <div style={{
+          width: '100%',
+          maxWidth: '420px',
+          background: '#fff',
+          borderRadius: '12px',
+          border: '1px solid var(--lux-line)',
+          padding: '40px 32px',
+          boxShadow: '0 4px 24px rgba(31,38,35,0.07)',
+        }}>
+          {/* Logo / brand */}
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <Link href="/" style={{ textDecoration: 'none', color: 'var(--lux-ink)' }}>
+              <span style={{ fontSize: '1.5rem' }}>🏡</span>
+              <p style={{
+                margin: '8px 0 0',
+                fontFamily: 'var(--lux-serif)',
+                fontSize: '1.1rem',
+                fontWeight: 500,
+                color: 'var(--lux-ink)',
+              }}>
+                {BRAND.shortName}
+              </p>
+            </Link>
+            <h1 style={{
+              margin: '16px 0 0',
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              color: 'var(--lux-ink)',
+              letterSpacing: '-0.01em',
+            }}>
+              {t('auth.heading')}
+            </h1>
+          </div>
+
+          <form onSubmit={handleSubmit} noValidate>
+            {/* Email */}
+            <div style={{ marginBottom: '16px' }}>
+              <label
+                htmlFor="login-email"
+                style={{ display: 'block', marginBottom: '6px', fontWeight: 600, fontSize: '0.875rem', color: 'var(--lux-ink)' }}
+              >
+                {t('auth.emailLabel')}
+              </label>
+              <input
+                id="login-email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                aria-invalid={error ? 'true' : 'false'}
+                aria-describedby={error ? 'login-error' : undefined}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: '6px',
+                  border: `1px solid ${error ? '#c0392b' : 'var(--lux-line)'}`,
+                  fontSize: '1rem',
+                  color: 'var(--lux-ink)',
+                  background: '#fafafa',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {/* Password */}
+            <div style={{ marginBottom: '24px' }}>
+              <label
+                htmlFor="login-password"
+                style={{ display: 'block', marginBottom: '6px', fontWeight: 600, fontSize: '0.875rem', color: 'var(--lux-ink)' }}
+              >
+                {t('auth.passwordLabel')}
+              </label>
+              <input
+                id="login-password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                aria-invalid={error ? 'true' : 'false'}
+                aria-describedby={error ? 'login-error' : undefined}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: '6px',
+                  border: `1px solid ${error ? '#c0392b' : 'var(--lux-line)'}`,
+                  fontSize: '1rem',
+                  color: 'var(--lux-ink)',
+                  background: '#fafafa',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {/* Inline error */}
+            {error ? (
+              <p
+                id="login-error"
+                role="alert"
+                style={{
+                  margin: '0 0 16px',
+                  padding: '10px 14px',
+                  borderRadius: '6px',
+                  background: '#fff5f5',
+                  border: '1px solid #fca5a5',
+                  color: '#c0392b',
+                  fontSize: '0.875rem',
+                }}
+              >
+                {error}
+              </p>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="lux-btn lux-btn--solid"
+              style={{ width: '100%', cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1 }}
+            >
+              {submitting ? t('auth.signingIn') : t('auth.signIn')}
+            </button>
+          </form>
+        </div>
+      </div>
+    </>
+  );
+}

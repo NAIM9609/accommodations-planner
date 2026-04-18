@@ -47,6 +47,11 @@ on:
         required: false
         type: boolean
         default: true
+      enable_cognito:
+        description: Deploy the Cognito stack
+        required: false
+        type: boolean
+        default: true
     secrets:
       AWS_ACCESS_KEY_ID:
         required: true
@@ -186,6 +191,7 @@ jobs:
           OVERRIDES="${OVERRIDES} EnableApiGateway=${{ inputs.enable_api_gateway }}"
           OVERRIDES="${OVERRIDES} EnableAmplify=${{ inputs.enable_amplify }}"
           OVERRIDES="${OVERRIDES} EnableIam=${{ inputs.enable_iam }}"
+          OVERRIDES="${OVERRIDES} EnableCognito=${{ inputs.enable_cognito }}"
           echo "overrides=${OVERRIDES}" >> "$GITHUB_OUTPUT"
 
       - name: Clean up failed stack if in ROLLBACK_COMPLETE
@@ -267,4 +273,8 @@ jobs:
           fi
           if [ "${{ inputs.enable_dynamodb }}" = "true" ]; then
             check_output "DynamoDBTableName"
+          fi
+          if [ "${{ inputs.enable_cognito }}" = "true" ]; then
+            check_output "CognitoUserPoolId"
+            check_output "CognitoUserPoolClientId"
           fi

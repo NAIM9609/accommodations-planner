@@ -4,6 +4,17 @@
     "reservations": "Reservations",
     "skipToMain": "Skip to main content"
   },
+  "auth": {
+    "pageTitle": "Admin Login",
+    "heading": "Admin Login",
+    "emailLabel": "Email address",
+    "passwordLabel": "Password",
+    "signIn": "Sign in",
+    "signingIn": "Signing in…",
+    "signOut": "Sign out",
+    "checkingSession": "Checking session…",
+    "errorGeneric": "Login failed. Please check your credentials and try again."
+  },
   "footer": {
     "allRightsReserved": "All rights reserved."
   },

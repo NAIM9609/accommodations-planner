@@ -4,6 +4,17 @@
     "reservations": "Prenotazioni",
     "skipToMain": "Vai al contenuto principale"
   },
+  "auth": {
+    "pageTitle": "Accesso Admin",
+    "heading": "Accesso Admin",
+    "emailLabel": "Indirizzo email",
+    "passwordLabel": "Password",
+    "signIn": "Accedi",
+    "signingIn": "Accesso in corso…",
+    "signOut": "Esci",
+    "checkingSession": "Verifica sessione…",
+    "errorGeneric": "Accesso non riuscito. Controlla le credenziali e riprova."
+  },
   "footer": {
     "allRightsReserved": "Tutti i diritti riservati."
   },
