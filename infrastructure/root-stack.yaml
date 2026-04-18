@@ -133,8 +133,6 @@ Resources:
           Value: !Ref Environment
         - Key: ManagedBy
           Value: cloudformation
-    Capabilities:
-      - CAPABILITY_NAMED_IAM
 
   ApiGatewayStack:
     Type: AWS::CloudFormation::Stack
@@ -195,8 +193,6 @@ Resources:
           Value: !Ref Environment
         - Key: ManagedBy
           Value: cloudformation
-    Capabilities:
-      - CAPABILITY_NAMED_IAM
 
 Conditions:
   IsCustomDomainEnabled: !Equals [!Ref AmplifyCustomDomainEnabled, "true"]

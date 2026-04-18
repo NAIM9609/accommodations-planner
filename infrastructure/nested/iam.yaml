@@ -24,7 +24,7 @@ Conditions:
 
 Resources:
   GithubOidcProvider:
-    Type: AWS::IAM::OIDCConnectProvider
+    Type: AWS::IAM::OIDCProvider
     Condition: ShouldCreateOidcProvider
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
@@ -47,7 +47,7 @@ Resources:
             Principal:
               Federated: !If
                 - ShouldCreateOidcProvider
-                - !GetAtt GithubOidcProvider.Arn
+                - !Ref GithubOidcProvider
                 - !Sub "arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
             Action: sts:AssumeRoleWithWebIdentity
             Condition:
