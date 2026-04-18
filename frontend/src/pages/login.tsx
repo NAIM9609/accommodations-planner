@@ -11,6 +11,12 @@ export default function LoginPage(): JSX.Element {
   const router = useRouter();
   const { isAuthenticated, isLoading, login } = useAuth();
 
+  // Use an explicit allowlist to prevent open redirect attacks.
+  // Any returnTo value not in this list falls back to the default.
+  const ALLOWED_RETURN_PATHS = ['/reservations', '/help', '/'];
+  const rawReturn = typeof router.query.returnTo === 'string' ? router.query.returnTo : '';
+  const returnTo = ALLOWED_RETURN_PATHS.includes(rawReturn) ? rawReturn : '/reservations';
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -19,10 +25,9 @@ export default function LoginPage(): JSX.Element {
   // If already authenticated, redirect immediately
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      const returnTo = typeof router.query.returnTo === 'string' ? router.query.returnTo : '/reservations';
       router.replace(returnTo);
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, router, returnTo]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -30,7 +35,6 @@ export default function LoginPage(): JSX.Element {
     setSubmitting(true);
     try {
       await login(email, password);
-      const returnTo = typeof router.query.returnTo === 'string' ? router.query.returnTo : '/reservations';
       router.push(returnTo);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
