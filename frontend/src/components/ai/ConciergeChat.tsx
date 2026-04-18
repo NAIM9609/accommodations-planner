@@ -93,9 +93,8 @@ export default function ConciergeChat(): JSX.Element {
         <div
           id="concierge-chat-panel"
           className="concierge-chat__panel"
-          role="dialog"
+          role="region"
           aria-label={t('ai.chat.panelLabel')}
-          aria-modal="false"
         >
           <div className="concierge-chat__header">
             <div>
@@ -130,10 +129,12 @@ export default function ConciergeChat(): JSX.Element {
               </div>
             ))}
             {loading && (
-              <div className="concierge-chat__bubble concierge-chat__bubble--assistant concierge-chat__typing" aria-label={t('ai.chat.typingLabel')}>
-                <span />
-                <span />
-                <span />
+              <div role="status" aria-label={t('ai.chat.typingLabel')}>
+                <div className="concierge-chat__bubble concierge-chat__bubble--assistant concierge-chat__typing">
+                  <span />
+                  <span />
+                  <span />
+                </div>
               </div>
             )}
             {error && (

@@ -15,6 +15,7 @@ interface CitationItemProps {
 function CitationItem({ citation, index }: CitationItemProps): JSX.Element | null {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
+  const refsId = `citation-refs-${index}`;
 
   if (!citation.references.length) return null;
 
@@ -25,6 +26,7 @@ function CitationItem({ citation, index }: CitationItemProps): JSX.Element | nul
         className="help-citation__toggle"
         onClick={() => setExpanded((prev) => !prev)}
         aria-expanded={expanded}
+        aria-controls={refsId}
       >
         {t('ai.help.sourceLabel', { index: index + 1 })}
         <span className="help-citation__arrow" aria-hidden="true">
@@ -32,7 +34,7 @@ function CitationItem({ citation, index }: CitationItemProps): JSX.Element | nul
         </span>
       </button>
       {expanded && (
-        <ul className="help-citation__refs">
+        <ul id={refsId} className="help-citation__refs">
           {citation.references.map((ref, ri) => (
             <li key={ri} className="help-citation__ref">
               {ref.content && <p className="help-citation__ref-text">{ref.content}</p>}
@@ -130,7 +132,11 @@ export default function HelpPage(): JSX.Element {
           </form>
         )}
 
-        {error && <Notice message={error} />}
+        {error && (
+          <div id="help-error">
+            <Notice message={error} />
+          </div>
+        )}
 
         {result && (
           <div className="help-result" aria-live="polite">
