@@ -34,6 +34,15 @@ on:
         required: false
         type: boolean
         default: false
+      targeted_modules:
+        description: >-
+          Space-separated list of Terraform module targets for a targeted apply
+          (e.g. "module.dynamodb module.lambda"). When non-empty, only the
+          listed modules are included in the plan and apply. Leave empty for a
+          full plan/apply.
+        required: false
+        type: string
+        default: ''
       import_lock_timeout:
         description: Terraform -lock-timeout for each import (shorter = fail fast if state is locked elsewhere).
         required: false
@@ -66,16 +75,16 @@ jobs:
       run:
         working-directory: infrastructure
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.DEPLOY_AWS_REGION }}
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@b9cd54531c595e3a53f1ca38e3e2b3d8bfef3982 # v3.2.0
         with:
           terraform_version: '1.7.5'
 
@@ -118,10 +127,36 @@ jobs:
             echo "(none found in state – resources will be created fresh)"
           fi
 
+      # Back up the current remote state before touching it.
+      # The backup key is timestamped so each run is independently recoverable.
+      - name: Back up S3 Terraform state
+        run: |
+          TIMESTAMP="$(date -u '+%Y%m%dT%H%M%SZ')"
+          SOURCE_KEY="accommodations-planner/${{ inputs.backend_key }}"
+          BACKUP_KEY="accommodations-planner/backups/${TIMESTAMP}-${{ inputs.backend_key }}"
+          BUCKET="accommodations-planner-tf-state"
+          if aws s3api head-object \
+               --bucket "$BUCKET" \
+               --key   "$SOURCE_KEY" > /dev/null 2>&1; then
+            aws s3 cp \
+              "s3://${BUCKET}/${SOURCE_KEY}" \
+              "s3://${BUCKET}/${BACKUP_KEY}"
+            echo "State backed up to s3://${BUCKET}/${BACKUP_KEY}"
+          else
+            echo "No existing state object found at ${SOURCE_KEY} – skipping backup."
+          fi
+
+      # Plan and capture the detailed exit code:
+      #   0 = no changes  → skip apply (nothing to do)
+      #   1 = plan error  → fail immediately
+      #   2 = changes pending → proceed to apply
       - name: Terraform plan
+        id: plan
         run: |
           set -euo pipefail
           TF_ARGS=(
+            -detailed-exitcode
+            -out=tfplan
             -lock-timeout=${{ inputs.plan_apply_lock_timeout }}
             -var="environment=${{ inputs.environment }}"
             -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}"
@@ -133,22 +168,46 @@ jobs:
               TF_ARGS+=("-replace=${addr}")
             done < /tmp/replace_targets.txt
           fi
+          if [ -n "${{ inputs.targeted_modules }}" ]; then
+            for mod in ${{ inputs.targeted_modules }}; do
+              TF_ARGS+=("-target=${mod}")
+            done
+          fi
+          set +e
           terraform plan "${TF_ARGS[@]}"
+          PLAN_EXIT=$?
+          set -e
+          if [ "$PLAN_EXIT" -eq 1 ]; then
+            echo "Terraform plan failed with an error."
+            exit 1
+          fi
+          echo "plan_exit=${PLAN_EXIT}" >> "$GITHUB_OUTPUT"
+          if [ "$PLAN_EXIT" -eq 0 ]; then
+            echo "No infrastructure changes detected. Skipping apply."
+          else
+            echo "Changes detected. Apply will proceed."
+          fi
 
       - name: Terraform apply
+        if: ${{ steps.plan.outputs.plan_exit == '2' }}
         run: |
           set -euo pipefail
-          TF_ARGS=(
-            -auto-approve
-            -lock-timeout=${{ inputs.plan_apply_lock_timeout }}
-            -var="environment=${{ inputs.environment }}"
-            -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}"
-            -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
-          )
-          [ -n "${{ inputs.tfvars_file }}" ] && TF_ARGS+=("-var-file=${{ inputs.tfvars_file }}")
-          if [ -s /tmp/replace_targets.txt ]; then
-            while IFS= read -r addr; do
-              TF_ARGS+=("-replace=${addr}")
-            done < /tmp/replace_targets.txt
-          fi
-          terraform apply "${TF_ARGS[@]}"
+          terraform apply -auto-approve tfplan
+
+      # Validate key outputs exist and are non-empty after apply.
+      - name: Validate Terraform outputs
+        if: ${{ steps.plan.outputs.plan_exit == '2' }}
+        run: |
+          set -euo pipefail
+          check_output() {
+            local name="$1"
+            local value
+            value="$(terraform output -raw "${name}" 2>/dev/null || true)"
+            if [ -z "${value}" ]; then
+              echo "ERROR: Terraform output '${name}' is empty or missing."
+              exit 1
+            fi
+            echo "Output '${name}' = ${value}"
+          }
+          check_output "api_url"
+          check_output "dynamodb_table_name"

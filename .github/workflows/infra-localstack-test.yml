@@ -1,0 +1,99 @@
+name: Infra LocalStack Test
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'infrastructure/**'
+      - '.github/workflows/infra-localstack-test.yml'
+      - '.github/scripts/localstack-providers-override.tf'
+      - '.github/scripts/localstack-post-apply-smoke.sh'
+
+permissions:
+  contents: read
+
+jobs:
+  localstack-terraform-test:
+    name: Terraform LocalStack Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infrastructure
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # Start LocalStack (Community Edition) with all services enabled.
+      # Port mapping matches docker-compose.yml: host 14566 → container 4566.
+      - name: Start LocalStack
+        run: |
+          docker run -d --name localstack \
+            -p 14566:4566 \
+            -e DEBUG=0 \
+            localstack/localstack:latest
+
+      - name: Wait for LocalStack to be healthy
+        run: |
+          echo "Waiting for LocalStack to become healthy..."
+          timeout 90 bash -c \
+            'until curl -sf http://localhost:14566/_localstack/health \
+               | grep -q "\"running\""; do sleep 3; done'
+          echo "LocalStack is healthy."
+
+      - uses: hashicorp/setup-terraform@b9cd54531c595e3a53f1ca38e3e2b3d8bfef3982 # v3.2.0
+        with:
+          terraform_version: '1.7.5'
+
+      # Copy the provider override file into the infrastructure working directory.
+      # The file name ends in _override.tf so Terraform treats it as an override
+      # and merges it with the existing provider.tf configuration.
+      - name: Inject LocalStack provider override
+        run: cp ../.github/scripts/localstack-providers-override.tf localstack_override.tf
+
+      - name: Terraform init (no backend)
+        run: terraform init -backend=false -input=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+      # Plan only the core modules supported by LocalStack Community Edition.
+      # Amplify is excluded with -target because it is not available locally.
+      # data.aws_caller_identity and the OIDC data source are only referenced
+      # by root-level resources that are also excluded, so they are not evaluated.
+      - name: Terraform plan (LocalStack)
+        run: |
+          terraform plan \
+            -var-file=localstack.tfvars \
+            -target=module.dynamodb \
+            -target=module.lambda \
+            -target=module.api_gateway \
+            -out=localstack.tfplan \
+            -input=false
+
+      - name: Terraform apply (LocalStack)
+        run: terraform apply -auto-approve localstack.tfplan
+
+      - name: Run post-apply smoke tests
+        env:
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_DEFAULT_REGION: us-east-1
+          LOCALSTACK_ENDPOINT: http://localhost:14566
+        run: bash ../.github/scripts/localstack-post-apply-smoke.sh accommodations-planner-dev
+
+      # Destroy in a separate step that always runs so the LocalStack container
+      # is not left with stale state between workflow retries.
+      - name: Terraform destroy (cleanup)
+        if: always()
+        run: |
+          terraform destroy \
+            -auto-approve \
+            -var-file=localstack.tfvars \
+            -target=module.dynamodb \
+            -target=module.lambda \
+            -target=module.api_gateway \
+            -input=false || true
+
+      - name: Stop LocalStack
+        if: always()
+        run: docker stop localstack || true
