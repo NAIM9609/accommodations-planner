@@ -16,4 +16,3 @@
 aws_region             = "us-east-1"
 environment            = "dev"
 amplify_github_token   = "localstack-fake-token"
-allow_dynamodb_destroy = true
