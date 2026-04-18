@@ -2,11 +2,34 @@ name: Deploy Dev Infra
 
 on:
   workflow_dispatch:
+    inputs:
+      stacks:
+        description: "Which stacks to deploy (disabling a stack DELETES it)"
+        required: false
+        type: choice
+        default: all
+        options:
+          - all
+          - core
+          - no-amplify
+          - no-iam
+          - iam-only
+      skip_cleanup:
+        description: Skip automatic orphaned resource cleanup
+        required: false
+        type: boolean
+        default: false
+      force_cleanup_dynamo:
+        description: Also delete orphaned DynamoDB table (DATA LOSS)
+        required: false
+        type: boolean
+        default: false
   push:
     branches: [master]
     paths:
       - 'infrastructure/**'
       - '.github/workflows/deploy-dev-infra.yml'
+      - '.github/workflows/deploy-infra.yml'
 
 concurrency:
   group: deploy-dev-infra
@@ -16,58 +39,20 @@ permissions:
   contents: read
 
 jobs:
-  validate-deploy-secrets-dev:
-    name: Validate Deploy Secrets (Dev)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Ensure required secrets are present
-        run: |
-          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
-            echo "Missing required secret: AWS_ACCESS_KEY_ID"
-            exit 1
-          fi
-          if [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
-            echo "Missing required secret: AWS_SECRET_ACCESS_KEY"
-            exit 1
-          fi
-          if [ -z "${{ secrets.AMPLIFY_GITHUB_TOKEN }}" ]; then
-            echo "Missing required secret: AMPLIFY_GITHUB_TOKEN"
-            exit 1
-          fi
-          if [ -z "${{ secrets.DEPLOY_AWS_REGION }}" ]; then
-            echo "Missing required secret: DEPLOY_AWS_REGION"
-            exit 1
-          fi
-
-  deploy-infra-dev:
-    name: Terraform Plan/Apply Dev
-    needs: [validate-deploy-secrets-dev]
-    runs-on: ubuntu-latest
-    environment: dev
-    defaults:
-      run:
-        working-directory: infrastructure
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.DEPLOY_AWS_REGION }}
-
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: '1.7.5'
-
-      - run: |
-          terraform init \
-            -backend-config="bucket=accommodations-planner-tf-state" \
-            -backend-config="key=accommodations-planner/dev.tfstate" \
-            -backend-config="region=${{ secrets.DEPLOY_AWS_REGION }}" \
-            -backend-config="dynamodb_table=accommodations-planner-tf-lock" \
-            -backend-config="encrypt=true"
-      - run: terraform workspace select -or-create dev
-      - run: terraform plan -var="environment=dev" -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
-      - run: terraform apply -auto-approve -var="environment=dev" -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
+  deploy-infra:
+    name: Deploy Infra to Dev
+    uses: ./.github/workflows/deploy-infra.yml
+    with:
+      environment: dev
+      skip_cleanup: ${{ github.event.inputs.skip_cleanup == 'true' }}
+      force_cleanup_dynamo: ${{ github.event.inputs.force_cleanup_dynamo == 'true' }}
+      enable_dynamodb: ${{ github.event.inputs.stacks != 'iam-only' }}
+      enable_lambda: ${{ github.event.inputs.stacks != 'iam-only' }}
+      enable_api_gateway: ${{ github.event.inputs.stacks != 'iam-only' }}
+      enable_amplify: ${{ github.event.inputs.stacks == 'all' || github.event.inputs.stacks == '' || github.event.inputs.stacks == 'no-iam' }}
+      enable_iam: ${{ github.event.inputs.stacks != 'core' && github.event.inputs.stacks != 'no-iam' }}
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      DEPLOY_AWS_REGION: ${{ secrets.DEPLOY_AWS_REGION }}
+      AMPLIFY_GITHUB_TOKEN: ${{ secrets.AMPLIFY_GITHUB_TOKEN }}

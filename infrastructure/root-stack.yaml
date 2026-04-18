@@ -1,0 +1,268 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Accommodations Planner - Root stack with nested CloudFormation stacks
+
+Parameters:
+  Environment:
+    Type: String
+    Description: Deployment environment
+    AllowedValues: [dev, prod]
+  AppName:
+    Type: String
+    Default: accommodations-planner
+    Description: Application name used for resource naming
+  GithubRepo:
+    Type: String
+    Default: NAIM9609/accommodations-planner
+    Description: GitHub repository in owner/repo format
+  GithubBranch:
+    Type: String
+    Default: master
+    Description: GitHub branch Amplify builds from
+  AmplifyGithubToken:
+    Type: String
+    NoEcho: true
+    Description: GitHub personal access token for Amplify
+  LambdaReservedConcurrency:
+    Type: Number
+    Default: -1
+    Description: Reserved concurrency per Lambda (-1 for unreserved)
+  CloudwatchLogRetentionDays:
+    Type: Number
+    Default: 3
+    AllowedValues: [1, 3, 5, 7, 14, 30]
+    Description: CloudWatch log retention in days
+  ApiThrottleRateLimit:
+    Type: Number
+    Default: 5
+    Description: Steady-state API Gateway rate limit (requests/second)
+  ApiThrottleBurstLimit:
+    Type: Number
+    Default: 10
+    Description: API Gateway burst limit
+  AmplifyCustomDomainEnabled:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Enable Amplify custom domain association
+  AmplifyCustomDomainName:
+    Type: String
+    Default: ""
+    Description: Custom domain name (e.g. example.com)
+  AmplifyCustomDomainPrefix:
+    Type: String
+    Default: ""
+    Description: Subdomain prefix for custom domain
+  TemplatesBucketName:
+    Type: String
+    Description: S3 bucket containing nested stack templates
+  TemplatesPrefix:
+    Type: String
+    Default: nested/
+    Description: S3 key prefix for nested stack templates
+  PlaceholderBucket:
+    Type: String
+    Description: S3 bucket containing placeholder Lambda code zip
+  PlaceholderKey:
+    Type: String
+    Default: placeholders/lambda-placeholder.zip
+    Description: S3 key for the placeholder Lambda code zip
+  PlaceholderLayerKey:
+    Type: String
+    Default: placeholders/layer-placeholder.zip
+    Description: S3 key for the placeholder Lambda layer zip
+
+  # ── Stack selector flags ──────────────────────────────────────────────────
+  EnableDynamoDB:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Deploy the DynamoDB nested stack (disabling DELETES existing stack)
+  EnableLambda:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Deploy the Lambda nested stack (disabling DELETES existing stack)
+  EnableApiGateway:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Deploy the API Gateway nested stack (disabling DELETES existing stack)
+  EnableAmplify:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Deploy the Amplify nested stack (disabling DELETES existing stack)
+  EnableIam:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Deploy the IAM nested stack (disabling DELETES existing stack)
+
+Rules:
+  CustomDomainRequiresName:
+    RuleCondition: !Equals [!Ref AmplifyCustomDomainEnabled, "true"]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref AmplifyCustomDomainName, ""]]
+        AssertDescription: AmplifyCustomDomainName must be set when AmplifyCustomDomainEnabled is true.
+
+  # ── Dependency chain: DynamoDB → Lambda → ApiGateway → Amplify ──────────
+  LambdaRequiresDynamoDB:
+    RuleCondition: !Equals [!Ref EnableLambda, "true"]
+    Assertions:
+      - Assert: !Equals [!Ref EnableDynamoDB, "true"]
+        AssertDescription: Lambda stack requires DynamoDB stack to be enabled.
+  ApiGatewayRequiresLambda:
+    RuleCondition: !Equals [!Ref EnableApiGateway, "true"]
+    Assertions:
+      - Assert: !Equals [!Ref EnableLambda, "true"]
+        AssertDescription: API Gateway stack requires Lambda stack to be enabled.
+  AmplifyRequiresApiGateway:
+    RuleCondition: !Equals [!Ref EnableAmplify, "true"]
+    Assertions:
+      - Assert: !Equals [!Ref EnableApiGateway, "true"]
+        AssertDescription: Amplify stack requires API Gateway stack to be enabled.
+
+Resources:
+  DynamoDBStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: DeployDynamoDB
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucketName}.s3.amazonaws.com/${TemplatesPrefix}dynamodb.yaml"
+      Parameters:
+        TableName: !Sub "${AppName}-${Environment}-reservations"
+        Environment: !Ref Environment
+      Tags:
+        - Key: Project
+          Value: !Ref AppName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: cloudformation
+
+  LambdaStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: DeployLambda
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucketName}.s3.amazonaws.com/${TemplatesPrefix}lambda.yaml"
+      Parameters:
+        Prefix: !Sub "${AppName}-${Environment}"
+        Environment: !Ref Environment
+        DynamoDBTableArn: !GetAtt DynamoDBStack.Outputs.TableArn
+        DynamoDBTableName: !GetAtt DynamoDBStack.Outputs.TableName
+        AmplifyBranch: !Ref GithubBranch
+        CustomDomainUrl: !If
+          - IsCustomDomainEnabled
+          - !If
+            - HasCustomDomainPrefix
+            - !Sub "https://${AmplifyCustomDomainPrefix}.${AmplifyCustomDomainName}"
+            - !Sub "https://${AmplifyCustomDomainName}"
+          - ""
+        ReservedConcurrency: !Ref LambdaReservedConcurrency
+        LogRetentionDays: !Ref CloudwatchLogRetentionDays
+        PlaceholderBucket: !Ref PlaceholderBucket
+        PlaceholderKey: !Ref PlaceholderKey
+        PlaceholderLayerKey: !Ref PlaceholderLayerKey
+      Tags:
+        - Key: Project
+          Value: !Ref AppName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: cloudformation
+
+  ApiGatewayStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: DeployApiGateway
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucketName}.s3.amazonaws.com/${TemplatesPrefix}api-gateway.yaml"
+      Parameters:
+        Prefix: !Sub "${AppName}-${Environment}"
+        Environment: !Ref Environment
+        HealthLambdaArn: !GetAtt LambdaStack.Outputs.HealthLambdaArn
+        HealthLambdaName: !GetAtt LambdaStack.Outputs.HealthLambdaName
+        ReservationsLambdaArn: !GetAtt LambdaStack.Outputs.ReservationsLambdaArn
+        ReservationsLambdaName: !GetAtt LambdaStack.Outputs.ReservationsLambdaName
+        ThrottleRateLimit: !Ref ApiThrottleRateLimit
+        ThrottleBurstLimit: !Ref ApiThrottleBurstLimit
+      Tags:
+        - Key: Project
+          Value: !Ref AppName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: cloudformation
+
+  AmplifyStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: DeployAmplify
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucketName}.s3.amazonaws.com/${TemplatesPrefix}amplify.yaml"
+      Parameters:
+        Prefix: !Sub "${AppName}-${Environment}"
+        Environment: !Ref Environment
+        GithubRepo: !Ref GithubRepo
+        GithubBranch: !Ref GithubBranch
+        GithubToken: !Ref AmplifyGithubToken
+        ApiBaseUrl: !GetAtt ApiGatewayStack.Outputs.ApiUrl
+        CustomDomainEnabled: !Ref AmplifyCustomDomainEnabled
+        CustomDomainName: !Ref AmplifyCustomDomainName
+        CustomDomainPrefix: !Ref AmplifyCustomDomainPrefix
+      Tags:
+        - Key: Project
+          Value: !Ref AppName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: cloudformation
+
+  IamStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: DeployIam
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucketName}.s3.amazonaws.com/${TemplatesPrefix}iam.yaml"
+      Parameters:
+        Prefix: !Sub "${AppName}-${Environment}"
+        Environment: !Ref Environment
+        GithubRepo: !Ref GithubRepo
+      Tags:
+        - Key: Project
+          Value: !Ref AppName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: cloudformation
+
+Conditions:
+  IsCustomDomainEnabled: !Equals [!Ref AmplifyCustomDomainEnabled, "true"]
+  HasCustomDomainPrefix: !Not [!Equals [!Ref AmplifyCustomDomainPrefix, ""]]
+  DeployDynamoDB: !Equals [!Ref EnableDynamoDB, "true"]
+  DeployLambda: !Equals [!Ref EnableLambda, "true"]
+  DeployApiGateway: !Equals [!Ref EnableApiGateway, "true"]
+  DeployAmplify: !Equals [!Ref EnableAmplify, "true"]
+  DeployIam: !Equals [!Ref EnableIam, "true"]
+
+Outputs:
+  ApiUrl:
+    Condition: DeployApiGateway
+    Description: API Gateway base URL
+    Value: !GetAtt ApiGatewayStack.Outputs.ApiUrl
+  FrontendUrl:
+    Condition: DeployAmplify
+    Description: Amplify app default domain
+    Value: !GetAtt AmplifyStack.Outputs.AppUrl
+  AmplifyAppId:
+    Condition: DeployAmplify
+    Description: Amplify app ID for triggering builds
+    Value: !GetAtt AmplifyStack.Outputs.AppId
+  FrontendCustomDomainUrl:
+    Condition: DeployAmplify
+    Description: Amplify custom domain URL when enabled
+    Value: !GetAtt AmplifyStack.Outputs.CustomDomainUrl
+  DynamoDBTableName:
+    Condition: DeployDynamoDB
+    Description: DynamoDB table name
+    Value: !GetAtt DynamoDBStack.Outputs.TableName
+  GithubActionsRoleArn:
+    Condition: DeployIam
+    Description: IAM role ARN for GitHub Actions OIDC
+    Value: !GetAtt IamStack.Outputs.GithubActionsRoleArn

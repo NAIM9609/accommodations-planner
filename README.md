@@ -35,6 +35,28 @@ accommodations-planner/
 
 ---
 
+## ✅ Terraform Checks Before Commit
+
+Run the full Terraform pre-commit validation suite before pushing infrastructure
+changes:
+
+```bash
+npm run terraform:check
+```
+
+This command executes:
+1. Bash syntax checks for infrastructure helper scripts
+2. `terraform fmt -check -recursive`
+3. `terraform init -backend=false -input=false`
+4. `tflint --init` and `tflint --recursive`
+5. `terraform validate` with required `TF_VAR_*` placeholders
+6. `terraform test`
+
+The same command is enforced in CI by [infra-validate.yml](.github/workflows/infra-validate.yml),
+so local and remote validation stay aligned.
+
+---
+
 ## 🐳 Local Development with LocalStack
 
 `docker compose up` starts **everything**: LocalStack emulates AWS (DynamoDB,

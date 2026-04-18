@@ -1,0 +1,168 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: GitHub OIDC provider and Actions IAM role with scoped permissions
+
+Parameters:
+  Prefix:
+    Type: String
+    Description: Resource name prefix (app-name-environment)
+  Environment:
+    Type: String
+    Description: Deployment environment
+    AllowedValues: [dev, prod]
+  GithubRepo:
+    Type: String
+    Description: GitHub repository in owner/repo format
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prod]
+
+Resources:
+  GithubActionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${Prefix}-github-actions"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub "arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringLike:
+                "token.actions.githubusercontent.com:sub": !If
+                  - IsProd
+                  - !Sub "repo:${GithubRepo}:ref:refs/heads/master"
+                  - !Sub "repo:${GithubRepo}:*"
+                "token.actions.githubusercontent.com:job_workflow_ref":
+                  - !Sub "${GithubRepo}/.github/workflows/deploy-backend.yml@*"
+                  - !Sub "${GithubRepo}/.github/workflows/deploy-dev-backend.yml@*"
+                  - !Sub "${GithubRepo}/.github/workflows/deploy-dev-frontend.yml@*"
+                  - !Sub "${GithubRepo}/.github/workflows/deploy-dev-infra.yml@*"
+                  - !Sub "${GithubRepo}/.github/workflows/deploy-prod-backend.yml@*"
+                  - !Sub "${GithubRepo}/.github/workflows/deploy-prod-frontend.yml@*"
+                  - !Sub "${GithubRepo}/.github/workflows/deploy-prod-infra.yml@*"
+              StringEquals:
+                "token.actions.githubusercontent.com:aud": sts.amazonaws.com
+      Policies:
+        - PolicyName: !Sub "${Prefix}-github-actions-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Amplify: scoped to all apps in this account/region
+              - Effect: Allow
+                Action:
+                  - amplify:CreateApp
+                  - amplify:DeleteApp
+                  - amplify:GetApp
+                  - amplify:UpdateApp
+                  - amplify:CreateBranch
+                  - amplify:DeleteBranch
+                  - amplify:GetBranch
+                  - amplify:UpdateBranch
+                  - amplify:CreateDomainAssociation
+                  - amplify:DeleteDomainAssociation
+                  - amplify:GetDomainAssociation
+                  - amplify:UpdateDomainAssociation
+                Resource: !Sub "arn:aws:amplify:${AWS::Region}:${AWS::AccountId}:apps/*"
+              # Lambda: scoped to functions and layers with this stack's prefix
+              - Effect: Allow
+                Action:
+                  - lambda:CreateFunction
+                  - lambda:DeleteFunction
+                  - lambda:GetFunction
+                  - lambda:PublishVersion
+                  - lambda:UpdateAlias
+                  - lambda:UpdateFunctionCode
+                  - lambda:UpdateFunctionConfiguration
+                  - lambda:PublishLayerVersion
+                  - lambda:DeleteLayerVersion
+                  - lambda:GetLayerVersion
+                  - lambda:AddPermission
+                  - lambda:RemovePermission
+                Resource:
+                  - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Prefix}-*"
+                  - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:${Prefix}-*"
+                  - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:${Prefix}-*:*"
+              # API Gateway: scoped to this region
+              - Effect: Allow
+                Action:
+                  - apigateway:GET
+                  - apigateway:POST
+                  - apigateway:PUT
+                  - apigateway:PATCH
+                  - apigateway:DELETE
+                Resource: !Sub "arn:aws:apigateway:${AWS::Region}::*"
+              # S3: for state and template management
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource: "*"
+              # DynamoDB: scoped to tables with this stack's prefix
+              - Effect: Allow
+                Action:
+                  - dynamodb:DescribeTable
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:CreateTable
+                  - dynamodb:DeleteTable
+                  - dynamodb:UpdateTable
+                Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${Prefix}-*"
+              # IAM: scoped to roles with this stack's prefix
+              - Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:GetRole
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:UpdateAssumeRolePolicy
+                Resource: !Sub "arn:aws:iam::${AWS::AccountId}:role/${Prefix}-*"
+              # iam:PassRole scoped to Lambda execution role only
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: !Sub "arn:aws:iam::${AWS::AccountId}:role/${Prefix}-lambda-*"
+              # OIDC provider management
+              - Effect: Allow
+                Action:
+                  - iam:CreateOpenIDConnectProvider
+                  - iam:DeleteOpenIDConnectProvider
+                  - iam:GetOpenIDConnectProvider
+                  - iam:AddClientIDToOpenIDConnectProvider
+                  - iam:RemoveClientIDFromOpenIDConnectProvider
+                  - iam:UpdateOpenIDConnectProviderThumbprint
+                Resource: !Sub "arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
+              # CloudWatch Logs: scoped to Lambda log groups
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:DeleteLogGroup
+                  - logs:PutRetentionPolicy
+                  - logs:DeleteRetentionPolicy
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${Prefix}-*"
+              # CloudFormation: scoped to stacks with app prefix
+              - Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:DeleteStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:GetTemplate
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:GetTemplateSummary
+                Resource: !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/accommodations-planner-*/*"
+
+Outputs:
+  GithubActionsRoleArn:
+    Description: IAM role ARN for GitHub Actions OIDC
+    Value: !GetAtt GithubActionsRole.Arn

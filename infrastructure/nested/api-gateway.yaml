@@ -1,0 +1,151 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: API Gateway HTTP API with Lambda integrations
+
+Parameters:
+  Prefix:
+    Type: String
+    Description: Resource name prefix (app-name-environment)
+  Environment:
+    Type: String
+    Description: Deployment environment
+    AllowedValues: [dev, prod]
+  HealthLambdaArn:
+    Type: String
+    Description: ARN of the health Lambda function
+  HealthLambdaName:
+    Type: String
+    Description: Name of the health Lambda function
+  ReservationsLambdaArn:
+    Type: String
+    Description: ARN of the reservations Lambda function
+  ReservationsLambdaName:
+    Type: String
+    Description: Name of the reservations Lambda function
+  ThrottleRateLimit:
+    Type: Number
+    Default: 5
+    Description: Steady-state rate limit (requests/second)
+  ThrottleBurstLimit:
+    Type: Number
+    Default: 10
+    Description: Burst limit
+
+Resources:
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub "${Prefix}-api"
+      ProtocolType: HTTP
+
+  HealthIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationMethod: POST
+      PayloadFormatVersion: "1.0"
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HealthLambdaArn}/invocations"
+
+  ReservationsIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationMethod: POST
+      PayloadFormatVersion: "1.0"
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ReservationsLambdaArn}/invocations"
+
+  # Health routes
+  HealthGetRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: GET /health
+      Target: !Sub "integrations/${HealthIntegration}"
+
+  HealthOptionsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: OPTIONS /health
+      Target: !Sub "integrations/${HealthIntegration}"
+
+  # Reservations collection routes
+  ReservationsGetRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: GET /reservations
+      Target: !Sub "integrations/${ReservationsIntegration}"
+
+  ReservationsPostRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: POST /reservations
+      Target: !Sub "integrations/${ReservationsIntegration}"
+
+  ReservationsOptionsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: OPTIONS /reservations
+      Target: !Sub "integrations/${ReservationsIntegration}"
+
+  # Reservations individual routes
+  ReservationIdGetRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "GET /reservations/{id}"
+      Target: !Sub "integrations/${ReservationsIntegration}"
+
+  ReservationIdDeleteRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "DELETE /reservations/{id}"
+      Target: !Sub "integrations/${ReservationsIntegration}"
+
+  ReservationIdOptionsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "OPTIONS /reservations/{id}"
+      Target: !Sub "integrations/${ReservationsIntegration}"
+
+  # Lambda permissions for API Gateway invocation
+  HealthLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref HealthLambdaName
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*"
+
+  ReservationsLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ReservationsLambdaName
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*"
+
+  ApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: !Ref Environment
+      AutoDeploy: true
+      DefaultRouteSettings:
+        ThrottlingRateLimit: !Ref ThrottleRateLimit
+        ThrottlingBurstLimit: !Ref ThrottleBurstLimit
+        DetailedMetricsEnabled: false
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway invoke URL
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+  ApiId:
+    Description: API Gateway API ID
+    Value: !Ref HttpApi

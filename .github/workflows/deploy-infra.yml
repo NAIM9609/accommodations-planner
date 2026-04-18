@@ -1,0 +1,270 @@
+name: Deploy Infra (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Deployment environment (dev or prod)
+        required: true
+        type: string
+      params_file:
+        description: Optional CloudFormation parameter file (e.g. params/prod.json)
+        required: false
+        type: string
+        default: ''
+      skip_cleanup:
+        description: Skip automatic orphaned resource cleanup
+        required: false
+        type: boolean
+        default: false
+      force_cleanup_dynamo:
+        description: Also delete orphaned DynamoDB table (DATA LOSS risk)
+        required: false
+        type: boolean
+        default: false
+      enable_dynamodb:
+        description: Deploy the DynamoDB stack
+        required: false
+        type: boolean
+        default: true
+      enable_lambda:
+        description: Deploy the Lambda stack
+        required: false
+        type: boolean
+        default: true
+      enable_api_gateway:
+        description: Deploy the API Gateway stack
+        required: false
+        type: boolean
+        default: true
+      enable_amplify:
+        description: Deploy the Amplify stack
+        required: false
+        type: boolean
+        default: true
+      enable_iam:
+        description: Deploy the IAM stack
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      DEPLOY_AWS_REGION:
+        required: true
+      AMPLIFY_GITHUB_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-infra:
+    name: CloudFormation Deploy (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: cloudformation-${{ inputs.environment }}
+      cancel-in-progress: false
+    env:
+      STACK_NAME: "accommodations-planner-${{ inputs.environment }}"
+      TEMPLATES_BUCKET: "accommodations-planner-cfn-templates"
+    defaults:
+      run:
+        working-directory: infrastructure
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.DEPLOY_AWS_REGION }}
+
+      - name: Ensure templates S3 bucket exists
+        run: |
+          if ! aws s3api head-bucket --bucket "$TEMPLATES_BUCKET" 2>/dev/null; then
+            aws s3api create-bucket \
+              --bucket "$TEMPLATES_BUCKET" \
+              --region "${{ secrets.DEPLOY_AWS_REGION }}"
+            aws s3api put-bucket-versioning \
+              --bucket "$TEMPLATES_BUCKET" \
+              --versioning-configuration Status=Enabled
+            aws s3api put-bucket-encryption \
+              --bucket "$TEMPLATES_BUCKET" \
+              --server-side-encryption-configuration '{
+                "Rules": [{"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}}]
+              }'
+            aws s3api put-public-access-block \
+              --bucket "$TEMPLATES_BUCKET" \
+              --public-access-block-configuration '{
+                "BlockPublicAcls": true,
+                "IgnorePublicAcls": true,
+                "BlockPublicPolicy": true,
+                "RestrictPublicBuckets": true
+              }'
+          fi
+
+      - name: Create placeholder Lambda artifacts
+        run: |
+          # Lambda function placeholder
+          mkdir -p /tmp/placeholders
+          echo 'exports.handler = async () => ({ statusCode: 200, body: "placeholder" });' > /tmp/placeholders/index.js
+          cd /tmp/placeholders && zip lambda-placeholder.zip index.js
+          # Lambda layer placeholder
+          mkdir -p /tmp/placeholders/nodejs
+          echo '{}' > /tmp/placeholders/nodejs/package.json
+          cd /tmp/placeholders && zip -r layer-placeholder.zip nodejs/
+          # Upload
+          aws s3 cp /tmp/placeholders/lambda-placeholder.zip "s3://${TEMPLATES_BUCKET}/placeholders/lambda-placeholder.zip"
+          aws s3 cp /tmp/placeholders/layer-placeholder.zip "s3://${TEMPLATES_BUCKET}/placeholders/layer-placeholder.zip"
+
+      - name: Ensure GitHub OIDC provider exists
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+          PROVIDER_ARN="arn:aws:iam::${ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com"
+          if aws iam get-open-id-connect-provider --open-id-connect-provider-arn "$PROVIDER_ARN" >/dev/null 2>&1; then
+            echo "GitHub OIDC provider already exists."
+          else
+            echo "Creating GitHub OIDC provider..."
+            aws iam create-open-id-connect-provider \
+              --url "https://token.actions.githubusercontent.com" \
+              --client-id-list "sts.amazonaws.com" \
+              --thumbprint-list "6938fd4d98bab03faadb97b34396831e3780aea1" "1c58a3a8518e8759bf075b76b750d4f2df264fcd"
+            echo "GitHub OIDC provider created."
+          fi
+
+      - name: Upload nested templates to S3
+        run: |
+          aws s3 sync nested/ "s3://${TEMPLATES_BUCKET}/nested/" --delete
+
+      - name: Validate templates
+        run: |
+          set -euo pipefail
+          echo "Validating root stack..."
+          aws cloudformation validate-template \
+            --template-body file://root-stack.yaml
+          for template in nested/*.yaml; do
+            echo "Validating ${template}..."
+            aws cloudformation validate-template \
+              --template-body "file://${template}"
+          done
+
+      - name: Build parameter overrides
+        id: params
+        run: |
+          set -euo pipefail
+          OVERRIDES="Environment=${{ inputs.environment }}"
+          OVERRIDES="${OVERRIDES} AmplifyGithubToken=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
+          OVERRIDES="${OVERRIDES} TemplatesBucketName=${TEMPLATES_BUCKET}"
+          OVERRIDES="${OVERRIDES} PlaceholderBucket=${TEMPLATES_BUCKET}"
+
+          # Merge parameter file overrides if provided
+          if [ -n "${{ inputs.params_file }}" ] && [ -f "${{ inputs.params_file }}" ]; then
+            while IFS= read -r line; do
+              key=$(echo "$line" | jq -r '.ParameterKey')
+              value=$(echo "$line" | jq -r '.ParameterValue')
+              if [ "$key" != "null" ] && [ "$value" != "null" ]; then
+                OVERRIDES="${OVERRIDES} ${key}=${value}"
+              fi
+            done < <(jq -c '.[]' "${{ inputs.params_file }}")
+          fi
+
+          echo "overrides=${OVERRIDES}" >> "$GITHUB_OUTPUT"
+
+      - name: Append stack selector overrides
+        id: stack_params
+        run: |
+          set -euo pipefail
+          OVERRIDES="${{ steps.params.outputs.overrides }}"
+          OVERRIDES="${OVERRIDES} EnableDynamoDB=${{ inputs.enable_dynamodb }}"
+          OVERRIDES="${OVERRIDES} EnableLambda=${{ inputs.enable_lambda }}"
+          OVERRIDES="${OVERRIDES} EnableApiGateway=${{ inputs.enable_api_gateway }}"
+          OVERRIDES="${OVERRIDES} EnableAmplify=${{ inputs.enable_amplify }}"
+          OVERRIDES="${OVERRIDES} EnableIam=${{ inputs.enable_iam }}"
+          echo "overrides=${OVERRIDES}" >> "$GITHUB_OUTPUT"
+
+      - name: Clean up failed stack if in ROLLBACK_COMPLETE
+        run: |
+          set -euo pipefail
+          STACK_STATUS="$(aws cloudformation describe-stacks \
+            --stack-name "${STACK_NAME}" \
+            --query "Stacks[0].StackStatus" \
+            --output text 2>/dev/null || echo "DOES_NOT_EXIST")"
+          if [ "$STACK_STATUS" = "ROLLBACK_COMPLETE" ]; then
+            echo "Stack is in ROLLBACK_COMPLETE state. Deleting before re-deploy..."
+            aws cloudformation delete-stack --stack-name "${STACK_NAME}"
+            aws cloudformation wait stack-delete-complete --stack-name "${STACK_NAME}"
+            echo "Stack deleted."
+          fi
+
+      - name: Clean up orphaned resources from failed deploys
+        if: ${{ inputs.skip_cleanup != true }}
+        run: |
+          set -euo pipefail
+          export PREFIX="${STACK_NAME}"
+          export STACK_NAME
+          export CLEANUP_DYNAMO="${{ inputs.force_cleanup_dynamo }}"
+          chmod +x scripts/cleanup-orphaned-resources.sh
+          bash scripts/cleanup-orphaned-resources.sh
+
+      - name: Deploy CloudFormation stack
+        run: |
+          set -euo pipefail
+          aws cloudformation deploy \
+            --template-file root-stack.yaml \
+            --stack-name "${STACK_NAME}" \
+            --parameter-overrides ${{ steps.stack_params.outputs.overrides }} \
+            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+            --no-fail-on-empty-changeset \
+            --tags \
+              Project=accommodations-planner \
+              Environment=${{ inputs.environment }} \
+              ManagedBy=cloudformation
+
+      - name: Show failure diagnostics
+        if: failure()
+        run: |
+          echo "=== Stack Events (last 30) ==="
+          aws cloudformation describe-stack-events \
+            --stack-name "${STACK_NAME}" \
+            --query "StackEvents[?ResourceStatus=='CREATE_FAILED' || ResourceStatus=='UPDATE_FAILED'].[LogicalResourceId,ResourceStatusReason]" \
+            --output table 2>/dev/null || true
+          # Check nested stacks
+          for nested_arn in $(aws cloudformation describe-stack-events \
+            --stack-name "${STACK_NAME}" \
+            --query "StackEvents[?ResourceStatus=='CREATE_FAILED' && ResourceType=='AWS::CloudFormation::Stack'].PhysicalResourceId" \
+            --output text 2>/dev/null || true); do
+            echo "=== Nested Stack Events: $nested_arn ==="
+            aws cloudformation describe-stack-events \
+              --stack-name "$nested_arn" \
+              --query "StackEvents[?ResourceStatus=='CREATE_FAILED'].[LogicalResourceId,ResourceStatusReason]" \
+              --output table 2>/dev/null || true
+          done
+
+      - name: Validate CloudFormation outputs
+        run: |
+          set -euo pipefail
+          check_output() {
+            local name="$1"
+            local value
+            value="$(aws cloudformation describe-stacks \
+              --stack-name "${STACK_NAME}" \
+              --query "Stacks[0].Outputs[?OutputKey=='${name}'].OutputValue" \
+              --output text 2>/dev/null || true)"
+            if [ -z "${value}" ] || [ "${value}" = "None" ]; then
+              echo "ERROR: CloudFormation output '${name}' is empty or missing."
+              exit 1
+            fi
+            echo "Output '${name}' = ${value}"
+          }
+          if [ "${{ inputs.enable_api_gateway }}" = "true" ]; then
+            check_output "ApiUrl"
+          fi
+          if [ "${{ inputs.enable_dynamodb }}" = "true" ]; then
+            check_output "DynamoDBTableName"
+          fi
