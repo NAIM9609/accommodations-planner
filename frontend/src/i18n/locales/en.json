@@ -1,0 +1,130 @@
+{
+  "nav": {
+    "home": "Home",
+    "reservations": "Reservations",
+    "skipToMain": "Skip to main content"
+  },
+  "footer": {
+    "allRightsReserved": "All rights reserved."
+  },
+  "home": {
+    "metaDescription": "A refined coastal retreat with curated suites, signature experiences, and elevated dining.",
+    "heroTitle": "Cliffside serenity with timeless Mediterranean soul",
+    "heroSubtitle": "Set high above the waterline, {{brandName}} blends heritage architecture, botanical gardens, and modern hospitality into one immersive stay.",
+    "checkRates": "Check rates",
+    "exploreRetreat": "Explore the retreat",
+    "arrival": "Arrival",
+    "departure": "Departure",
+    "flexibleDates": "Flexible dates",
+    "guests": "Guests",
+    "twoAdults": "2 adults",
+    "reserveNow": "Reserve now",
+    "unparalleledStay": "Unparalleled Stay",
+    "introHeading": "A five-star hideaway designed for slow mornings and cinematic evenings",
+    "introDesc": "Originally conceived as a hillside estate and now reimagined as a contemporary sanctuary, our retreat offers sea-facing terraces, fragrant citrus courtyards, and personalized service that anticipates every detail.",
+    "planItinerary": "Plan your itinerary",
+    "accommodations": "Accommodations",
+    "suitesHeading": "Suites crafted for quiet luxury",
+    "viewRoomDetails": "View room details",
+    "discoverBrand": "Discover {{brandName}}",
+    "experiencesHeading": "Curated experiences beyond the retreat",
+    "speakConcierge": "Speak with concierge",
+    "featuredOffers": "Featured Offers",
+    "offersHeading": "Seasonal privileges for longer stays",
+    "offerCreditTitle": "Experience More Credit",
+    "offerCreditDesc": "Receive a $220 resort credit to elevate your stay with wellness sessions, dining, or private excursions.",
+    "viewOfferTerms": "View offer terms",
+    "offerEscapeTitle": "Suite Escape - 15% Off",
+    "offerEscapeDesc": "Stay three nights or more and enjoy preferred rates, daily breakfast, and expedited coastal transfers.",
+    "seeAvailability": "See availability",
+    "wellnessSanctuary": "Wellness Sanctuary",
+    "spaHeading": "Restore at our botanical spa",
+    "spaDesc": "Signature rituals draw on citrus oils, marine minerals, and thermal therapies to restore body and mind.",
+    "reserveYourStay": "Reserve your stay",
+    "suites": {
+      "gardenTerrace": {
+        "name": "Garden Terrace Room",
+        "rate": "From $289 / night",
+        "desc": "A quiet retreat with private terrace seating, handcrafted linens, and morning light over the orchard."
+      },
+      "seaHorizon": {
+        "name": "Sea Horizon Suite",
+        "rate": "From $429 / night",
+        "desc": "Expansive indoor-outdoor living with panoramic bay views, marble bath, and curated welcome amenities."
+      },
+      "grandVilla": {
+        "name": "Grand Villa Residence",
+        "rate": "From $690 / night",
+        "desc": "A private residence experience with dedicated host service, sunset lounge deck, and chef breakfast."
+      }
+    },
+    "experiences": {
+      "sunsetCruise": {
+        "title": "Sunset Coastal Cruise",
+        "detail": "3 hours",
+        "blurb": "Sail the cliffline at golden hour with a sommelier-led tasting of local sparkling wines."
+      },
+      "vineyardJourney": {
+        "title": "Volcanic Vineyard Journey",
+        "detail": "Half day",
+        "blurb": "Travel into the highlands for cellar tours, chef-paired lunch, and views over ancient terraces."
+      },
+      "heritageWalk": {
+        "title": "Cinema & Heritage Walk",
+        "detail": "4 hours",
+        "blurb": "Discover storied piazzas and iconic filming landmarks with a private cultural concierge."
+      }
+    }
+  },
+  "reservations": {
+    "pageTitle": "Reservations",
+    "planYourStay": "Plan your stay",
+    "subtitle": "Create new bookings, review active stays, and manage availability from one place.",
+    "closeForm": "Close Form",
+    "newReservation": "New Reservation",
+    "createReservation": "Create a reservation",
+    "loadingTitle": "Loading reservations",
+    "loadingDesc": "Gathering the latest bookings and availability details.",
+    "emptyTitle": "No reservations yet",
+    "emptyDesc": "Create your first reservation to begin managing guest stays.",
+    "errorLoad": "Failed to load reservations. Please check your API configuration.",
+    "errorCreate": "Failed to create reservation. Please try again.",
+    "errorDelete": "Failed to delete reservation. Please try again.",
+    "confirmCancel": "Are you sure you want to cancel this reservation?"
+  },
+  "form": {
+    "guestName": "Guest Name",
+    "guestNamePlaceholder": "John Smith",
+    "emailAddress": "Email Address",
+    "emailPlaceholder": "john@example.com",
+    "checkInDate": "Check-in Date",
+    "checkOutDate": "Check-out Date",
+    "roomType": "Room Type",
+    "standardRoom": "Standard Room - $89/night",
+    "deluxeRoom": "Deluxe Room - $129/night",
+    "suiteRoom": "Suite - $189/night",
+    "creatingReservation": "Creating Reservation...",
+    "confirmReservation": "Confirm Reservation",
+    "errors": {
+      "guestNameRequired": "Guest name is required",
+      "emailRequired": "Email is required",
+      "emailInvalid": "Invalid email address",
+      "checkInRequired": "Check-in date is required",
+      "checkOutRequired": "Check-out date is required",
+      "checkOutAfterCheckIn": "Check-out must be after check-in"
+    }
+  },
+  "card": {
+    "standard": "Standard",
+    "deluxe": "Deluxe",
+    "suite": "Suite",
+    "email": "Email:",
+    "stay": "Stay:",
+    "id": "ID:",
+    "booked": "Booked:",
+    "cancelReservation": "Cancel Reservation"
+  },
+  "common": {
+    "notice": "Notice:"
+  }
+}

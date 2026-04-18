@@ -34,7 +34,7 @@ export default function Document(): JSX.Element {
   const isDevelopment = process.env.NODE_ENV === 'development';
 
   return (
-    <Html lang="en">
+    <Html>
       <Head>
         {isDevelopment ? <script dangerouslySetInnerHTML={{ __html: DEV_SW_CLEANUP }} /> : null}
       </Head>

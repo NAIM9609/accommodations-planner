@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { CreateReservationInput } from '../lib/apiClient';
 import FormField from './ui/FormField';
 
@@ -8,6 +9,8 @@ interface ReservationFormProps {
 }
 
 export default function ReservationForm({ onSubmit, submitting = false }: ReservationFormProps) {
+  const { t } = useTranslation();
+
   const [form, setForm] = useState<CreateReservationInput>({
     guestName: '',
     guestEmail: '',
@@ -20,13 +23,13 @@ export default function ReservationForm({ onSubmit, submitting = false }: Reserv
 
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof CreateReservationInput, string>> = {};
-    if (!form.guestName.trim()) newErrors.guestName = 'Guest name is required';
-    if (!form.guestEmail.trim()) newErrors.guestEmail = 'Email is required';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.guestEmail)) newErrors.guestEmail = 'Invalid email address';
-    if (!form.checkIn) newErrors.checkIn = 'Check-in date is required';
-    if (!form.checkOut) newErrors.checkOut = 'Check-out date is required';
+    if (!form.guestName.trim()) newErrors.guestName = t('form.errors.guestNameRequired');
+    if (!form.guestEmail.trim()) newErrors.guestEmail = t('form.errors.emailRequired');
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.guestEmail)) newErrors.guestEmail = t('form.errors.emailInvalid');
+    if (!form.checkIn) newErrors.checkIn = t('form.errors.checkInRequired');
+    if (!form.checkOut) newErrors.checkOut = t('form.errors.checkOutRequired');
     if (form.checkIn && form.checkOut && form.checkOut <= form.checkIn) {
-      newErrors.checkOut = 'Check-out must be after check-in';
+      newErrors.checkOut = t('form.errors.checkOutAfterCheckIn');
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -55,30 +58,30 @@ export default function ReservationForm({ onSubmit, submitting = false }: Reserv
         <FormField
           id="guestName"
           name="guestName"
-          label="Guest Name"
+          label={t('form.guestName')}
           required
           value={form.guestName}
           onChange={handleChange}
-          placeholder="John Smith"
+          placeholder={t('form.guestNamePlaceholder')}
           error={errors.guestName}
         />
 
         <FormField
           id="guestEmail"
           name="guestEmail"
-          label="Email Address"
+          label={t('form.emailAddress')}
           required
           type="email"
           value={form.guestEmail}
           onChange={handleChange}
-          placeholder="john@example.com"
+          placeholder={t('form.emailPlaceholder')}
           error={errors.guestEmail}
         />
 
         <FormField
           id="checkIn"
           name="checkIn"
-          label="Check-in Date"
+          label={t('form.checkInDate')}
           required
           type="date"
           value={form.checkIn}
@@ -90,7 +93,7 @@ export default function ReservationForm({ onSubmit, submitting = false }: Reserv
         <FormField
           id="checkOut"
           name="checkOut"
-          label="Check-out Date"
+          label={t('form.checkOutDate')}
           required
           type="date"
           value={form.checkOut}
@@ -103,14 +106,14 @@ export default function ReservationForm({ onSubmit, submitting = false }: Reserv
       <FormField
         id="roomType"
         name="roomType"
-        label="Room Type"
+        label={t('form.roomType')}
         as="select"
         value={form.roomType}
         onChange={handleChange}
         options={[
-          { value: 'standard', label: 'Standard Room - $89/night' },
-          { value: 'deluxe', label: 'Deluxe Room - $129/night' },
-          { value: 'suite', label: 'Suite - $189/night' },
+          { value: 'standard', label: t('form.standardRoom') },
+          { value: 'deluxe', label: t('form.deluxeRoom') },
+          { value: 'suite', label: t('form.suiteRoom') },
         ]}
       />
 
@@ -119,7 +122,7 @@ export default function ReservationForm({ onSubmit, submitting = false }: Reserv
         disabled={submitting}
         className={`reservation-form__submit${submitting ? ' reservation-form__submit--disabled' : ''}`}
       >
-        {submitting ? 'Creating Reservation...' : 'Confirm Reservation'}
+        {submitting ? t('form.creatingReservation') : t('form.confirmReservation')}
       </button>
     </form>
   );

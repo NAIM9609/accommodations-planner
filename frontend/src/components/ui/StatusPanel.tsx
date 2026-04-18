@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 interface StatusPanelProps {
   icon: string;
   title: string;
@@ -19,9 +21,11 @@ interface NoticeProps {
 }
 
 export function Notice({ message }: NoticeProps): JSX.Element {
+  const { t } = useTranslation();
+
   return (
     <div className="notice notice--warning" role="alert">
-      <strong className="notice__label">Notice:</strong> {message}
+      <strong className="notice__label">{t('common.notice')}</strong> {message}
     </div>
   );
 }

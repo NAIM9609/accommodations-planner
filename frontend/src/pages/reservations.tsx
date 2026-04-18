@@ -1,5 +1,6 @@
 import Head from 'next/head';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../components/Layout';
 import ReservationForm from '../components/ReservationForm';
 import ReservationCard from '../components/reservations/ReservationCard';
@@ -9,6 +10,7 @@ import { getReservations, createReservation, deleteReservation, type Reservation
 import { BRAND } from '../lib/brand';
 
 function ReservationsPage(): JSX.Element {
+  const { t } = useTranslation();
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +24,7 @@ function ReservationsPage(): JSX.Element {
       const data = await getReservations();
       setReservations(data);
     } catch {
-      setError('Failed to load reservations. Please check your API configuration.');
+      setError(t('reservations.errorLoad'));
     } finally {
       setLoading(false);
     }
@@ -39,41 +41,41 @@ function ReservationsPage(): JSX.Element {
       setReservations(prev => [newReservation, ...prev]);
       setShowForm(false);
     } catch {
-      setError('Failed to create reservation. Please try again.');
+      setError(t('reservations.errorCreate'));
     } finally {
       setCreating(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to cancel this reservation?')) return;
+    if (!confirm(t('reservations.confirmCancel'))) return;
     try {
       await deleteReservation(id);
       setReservations(prev => prev.filter(r => r.id !== id));
     } catch {
-      setError('Failed to delete reservation. Please try again.');
+      setError(t('reservations.errorDelete'));
     }
   };
 
   return (
     <Layout>
       <Head>
-        <title>{`Reservations | ${BRAND.fullName}`}</title>
-        <meta name="description" content={`Create and manage reservations at ${BRAND.fullName}.`} />
+        <title>{`${t('reservations.pageTitle')} | ${BRAND.fullName}`}</title>
+        <meta name="description" content={`${t('reservations.planYourStay')} - ${BRAND.fullName}.`} />
       </Head>
 
       <section className="section-inner reservations-page">
         <PageSectionHeader
-          kicker="Reservations"
-          title="Plan your stay"
-          subtitle="Create new bookings, review active stays, and manage availability from one place."
+          kicker={t('reservations.pageTitle')}
+          title={t('reservations.planYourStay')}
+          subtitle={t('reservations.subtitle')}
           action={
             <button
               type="button"
               onClick={() => setShowForm((prev) => !prev)}
               className="reservations-new-btn"
             >
-              {showForm ? 'Close Form' : 'New Reservation'}
+              {showForm ? t('reservations.closeForm') : t('reservations.newReservation')}
             </button>
           }
         />
@@ -81,7 +83,7 @@ function ReservationsPage(): JSX.Element {
         {showForm ? (
           <section className="reservation-form-panel" aria-labelledby="new-reservation-title">
             <h2 id="new-reservation-title" className="reservation-form-panel__title">
-              Create a reservation
+              {t('reservations.createReservation')}
             </h2>
             <ReservationForm onSubmit={handleCreate} submitting={creating} />
           </section>
@@ -92,14 +94,14 @@ function ReservationsPage(): JSX.Element {
         {loading ? (
           <StatusPanel
             icon="⏳"
-            title="Loading reservations"
-            description="Gathering the latest bookings and availability details."
+            title={t('reservations.loadingTitle')}
+            description={t('reservations.loadingDesc')}
           />
         ) : reservations.length === 0 ? (
           <StatusPanel
             icon="📋"
-            title="No reservations yet"
-            description="Create your first reservation to begin managing guest stays."
+            title={t('reservations.emptyTitle')}
+            description={t('reservations.emptyDesc')}
           />
         ) : (
           <div className="reservation-list">

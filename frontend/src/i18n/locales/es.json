@@ -1,0 +1,130 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "reservations": "Reservas",
+    "skipToMain": "Ir al contenido principal"
+  },
+  "footer": {
+    "allRightsReserved": "Todos los derechos reservados."
+  },
+  "home": {
+    "metaDescription": "Un refinado refugio costero con suites curadas, experiencias exclusivas y gastronomía de altura.",
+    "heroTitle": "Serenidad en el acantilado con alma mediterránea atemporal",
+    "heroSubtitle": "Situado sobre el mar, {{brandName}} combina arquitectura patrimonial, jardines botánicos y hospitalidad moderna en una estancia inmersiva.",
+    "checkRates": "Ver tarifas",
+    "exploreRetreat": "Explorar el refugio",
+    "arrival": "Llegada",
+    "departure": "Salida",
+    "flexibleDates": "Fechas flexibles",
+    "guests": "Huéspedes",
+    "twoAdults": "2 adultos",
+    "reserveNow": "Reservar ahora",
+    "unparalleledStay": "Estancia Incomparable",
+    "introHeading": "Un refugio de cinco estrellas diseñado para mañanas tranquilas y noches cinematográficas",
+    "introDesc": "Originalmente concebido como una finca en la colina y ahora reinventado como un santuario contemporáneo, nuestro refugio ofrece terrazas frente al mar, patios perfumados de cítricos y un servicio personalizado que anticipa cada detalle.",
+    "planItinerary": "Planifica tu itinerario",
+    "accommodations": "Alojamientos",
+    "suitesHeading": "Suites diseñadas para el lujo discreto",
+    "viewRoomDetails": "Ver detalles de la habitación",
+    "discoverBrand": "Descubre {{brandName}}",
+    "experiencesHeading": "Experiencias curadas más allá del refugio",
+    "speakConcierge": "Habla con el concierge",
+    "featuredOffers": "Ofertas Destacadas",
+    "offersHeading": "Privilegios de temporada para estancias prolongadas",
+    "offerCreditTitle": "Crédito Experiencia Extra",
+    "offerCreditDesc": "Recibe un crédito de $220 del resort para enriquecer tu estancia con sesiones de bienestar, cenas o excursiones privadas.",
+    "viewOfferTerms": "Ver términos de la oferta",
+    "offerEscapeTitle": "Escapada en Suite - 15% de descuento",
+    "offerEscapeDesc": "Quédate tres noches o más y disfruta de tarifas preferenciales, desayuno diario y traslados costeros rápidos.",
+    "seeAvailability": "Ver disponibilidad",
+    "wellnessSanctuary": "Santuario de Bienestar",
+    "spaHeading": "Restaura en nuestro spa botánico",
+    "spaDesc": "Rituales exclusivos a base de aceites cítricos, minerales marinos y terapias termales para restaurar cuerpo y mente.",
+    "reserveYourStay": "Reserva tu estancia",
+    "suites": {
+      "gardenTerrace": {
+        "name": "Habitación Terraza Jardín",
+        "rate": "Desde $289 / noche",
+        "desc": "Un refugio tranquilo con terraza privada, ropa de cama artesanal y luz matutina sobre el huerto."
+      },
+      "seaHorizon": {
+        "name": "Suite Horizonte Marino",
+        "rate": "Desde $429 / noche",
+        "desc": "Amplios espacios interiores y exteriores con vistas panorámicas a la bahía, baño de mármol y amenidades de bienvenida curadas."
+      },
+      "grandVilla": {
+        "name": "Residencia Gran Villa",
+        "rate": "Desde $690 / noche",
+        "desc": "Una experiencia residencial privada con servicio de anfitrión dedicado, terraza lounge al atardecer y desayuno del chef."
+      }
+    },
+    "experiences": {
+      "sunsetCruise": {
+        "title": "Crucero Costero al Atardecer",
+        "detail": "3 horas",
+        "blurb": "Navega por la costa al atardecer con una cata de espumosos locales guiada por un sommelier."
+      },
+      "vineyardJourney": {
+        "title": "Viaje a los Viñedos Volcánicos",
+        "detail": "Medio día",
+        "blurb": "Viaja al interior para recorridos por bodegas, almuerzo maridado por el chef y vistas sobre terrazas ancestrales."
+      },
+      "heritageWalk": {
+        "title": "Cine y Paseo Patrimonial",
+        "detail": "4 horas",
+        "blurb": "Descubre plazas históricas y lugares icónicos del cine con un concierge cultural privado."
+      }
+    }
+  },
+  "reservations": {
+    "pageTitle": "Reservas",
+    "planYourStay": "Planifica tu estancia",
+    "subtitle": "Crea nuevas reservas, revisa estancias activas y gestiona la disponibilidad desde un solo lugar.",
+    "closeForm": "Cerrar Formulario",
+    "newReservation": "Nueva Reserva",
+    "createReservation": "Crear una reserva",
+    "loadingTitle": "Cargando reservas",
+    "loadingDesc": "Recopilando las últimas reservas y detalles de disponibilidad.",
+    "emptyTitle": "Sin reservas aún",
+    "emptyDesc": "Crea tu primera reserva para comenzar a gestionar las estancias de los huéspedes.",
+    "errorLoad": "Error al cargar las reservas. Verifica la configuración de la API.",
+    "errorCreate": "Error al crear la reserva. Inténtalo de nuevo.",
+    "errorDelete": "Error al eliminar la reserva. Inténtalo de nuevo.",
+    "confirmCancel": "¿Estás seguro de que deseas cancelar esta reserva?"
+  },
+  "form": {
+    "guestName": "Nombre del Huésped",
+    "guestNamePlaceholder": "Juan García",
+    "emailAddress": "Dirección de Email",
+    "emailPlaceholder": "juan@ejemplo.com",
+    "checkInDate": "Fecha de Check-in",
+    "checkOutDate": "Fecha de Check-out",
+    "roomType": "Tipo de Habitación",
+    "standardRoom": "Habitación Estándar - $89/noche",
+    "deluxeRoom": "Habitación Deluxe - $129/noche",
+    "suiteRoom": "Suite - $189/noche",
+    "creatingReservation": "Creando Reserva...",
+    "confirmReservation": "Confirmar Reserva",
+    "errors": {
+      "guestNameRequired": "El nombre del huésped es obligatorio",
+      "emailRequired": "El email es obligatorio",
+      "emailInvalid": "Dirección de email no válida",
+      "checkInRequired": "La fecha de check-in es obligatoria",
+      "checkOutRequired": "La fecha de check-out es obligatoria",
+      "checkOutAfterCheckIn": "El check-out debe ser posterior al check-in"
+    }
+  },
+  "card": {
+    "standard": "Estándar",
+    "deluxe": "Deluxe",
+    "suite": "Suite",
+    "email": "Email:",
+    "stay": "Estancia:",
+    "id": "ID:",
+    "booked": "Reservado:",
+    "cancelReservation": "Cancelar Reserva"
+  },
+  "common": {
+    "notice": "Aviso:"
+  }
+}

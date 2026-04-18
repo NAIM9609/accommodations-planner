@@ -1,0 +1,130 @@
+{
+  "nav": {
+    "home": "Home",
+    "reservations": "Prenotazioni",
+    "skipToMain": "Vai al contenuto principale"
+  },
+  "footer": {
+    "allRightsReserved": "Tutti i diritti riservati."
+  },
+  "home": {
+    "metaDescription": "Un raffinato rifugio costiero con suite curate, esperienze esclusive e alta cucina.",
+    "heroTitle": "Serenità sulla scogliera con anima mediterranea senza tempo",
+    "heroSubtitle": "Affacciato sul mare, {{brandName}} unisce architettura storica, giardini botanici e ospitalità moderna in un soggiorno immersivo.",
+    "checkRates": "Verifica le tariffe",
+    "exploreRetreat": "Scopri il rifugio",
+    "arrival": "Arrivo",
+    "departure": "Partenza",
+    "flexibleDates": "Date flessibili",
+    "guests": "Ospiti",
+    "twoAdults": "2 adulti",
+    "reserveNow": "Prenota ora",
+    "unparalleledStay": "Soggiorno Impareggiabile",
+    "introHeading": "Un rifugio a cinque stelle pensato per mattine lente e serate cinematografiche",
+    "introDesc": "Originariamente concepito come tenuta collinare e ora reimmaginato come santuario contemporaneo, il nostro rifugio offre terrazze con vista mare, cortili profumati di agrumi e un servizio personalizzato che anticipa ogni dettaglio.",
+    "planItinerary": "Pianifica il tuo itinerario",
+    "accommodations": "Alloggi",
+    "suitesHeading": "Suite progettate per un lusso discreto",
+    "viewRoomDetails": "Dettagli della camera",
+    "discoverBrand": "Scopri {{brandName}}",
+    "experiencesHeading": "Esperienze curate oltre il rifugio",
+    "speakConcierge": "Parla con il concierge",
+    "featuredOffers": "Offerte in Evidenza",
+    "offersHeading": "Privilegi stagionali per soggiorni prolungati",
+    "offerCreditTitle": "Credito Esperienza Extra",
+    "offerCreditDesc": "Ricevi un credito resort di $220 per arricchire il tuo soggiorno con sessioni benessere, cene o escursioni private.",
+    "viewOfferTerms": "Vedi i termini dell'offerta",
+    "offerEscapeTitle": "Fuga in Suite - 15% di sconto",
+    "offerEscapeDesc": "Soggiorna tre notti o più e goditi tariffe preferenziali, colazione giornaliera e trasferimenti costieri rapidi.",
+    "seeAvailability": "Verifica disponibilità",
+    "wellnessSanctuary": "Santuario del Benessere",
+    "spaHeading": "Rigenerati nella nostra spa botanica",
+    "spaDesc": "Rituali esclusivi a base di oli di agrumi, minerali marini e terapie termali per rigenerare corpo e mente.",
+    "reserveYourStay": "Prenota il tuo soggiorno",
+    "suites": {
+      "gardenTerrace": {
+        "name": "Camera Terrazza Giardino",
+        "rate": "Da $289 / notte",
+        "desc": "Un rifugio tranquillo con terrazza privata, biancheria artigianale e luce del mattino sul frutteto."
+      },
+      "seaHorizon": {
+        "name": "Suite Orizzonte Marino",
+        "rate": "Da $429 / notte",
+        "desc": "Ampi spazi indoor-outdoor con vista panoramica sulla baia, bagno in marmo e amenità di benvenuto curate."
+      },
+      "grandVilla": {
+        "name": "Residenza Grand Villa",
+        "rate": "Da $690 / notte",
+        "desc": "Un'esperienza residenziale privata con servizio host dedicato, terrazza lounge al tramonto e colazione dello chef."
+      }
+    },
+    "experiences": {
+      "sunsetCruise": {
+        "title": "Crociera Costiera al Tramonto",
+        "detail": "3 ore",
+        "blurb": "Naviga lungo la scogliera all'ora d'oro con una degustazione di spumanti locali guidata da un sommelier."
+      },
+      "vineyardJourney": {
+        "title": "Viaggio nei Vigneti Vulcanici",
+        "detail": "Mezza giornata",
+        "blurb": "Viaggia nell'entroterra per visite in cantina, pranzo abbinato dallo chef e panorami su terrazzamenti antichi."
+      },
+      "heritageWalk": {
+        "title": "Cinema e Passeggiata Storica",
+        "detail": "4 ore",
+        "blurb": "Scopri piazze storiche e luoghi iconici del cinema con un concierge culturale privato."
+      }
+    }
+  },
+  "reservations": {
+    "pageTitle": "Prenotazioni",
+    "planYourStay": "Pianifica il tuo soggiorno",
+    "subtitle": "Crea nuove prenotazioni, rivedi i soggiorni attivi e gestisci la disponibilità da un unico punto.",
+    "closeForm": "Chiudi Modulo",
+    "newReservation": "Nuova Prenotazione",
+    "createReservation": "Crea una prenotazione",
+    "loadingTitle": "Caricamento prenotazioni",
+    "loadingDesc": "Raccolta delle ultime prenotazioni e dettagli di disponibilità.",
+    "emptyTitle": "Nessuna prenotazione",
+    "emptyDesc": "Crea la tua prima prenotazione per iniziare a gestire i soggiorni degli ospiti.",
+    "errorLoad": "Impossibile caricare le prenotazioni. Controlla la configurazione dell'API.",
+    "errorCreate": "Impossibile creare la prenotazione. Riprova.",
+    "errorDelete": "Impossibile eliminare la prenotazione. Riprova.",
+    "confirmCancel": "Sei sicuro di voler cancellare questa prenotazione?"
+  },
+  "form": {
+    "guestName": "Nome Ospite",
+    "guestNamePlaceholder": "Mario Rossi",
+    "emailAddress": "Indirizzo Email",
+    "emailPlaceholder": "mario@esempio.com",
+    "checkInDate": "Data di Check-in",
+    "checkOutDate": "Data di Check-out",
+    "roomType": "Tipo di Camera",
+    "standardRoom": "Camera Standard - $89/notte",
+    "deluxeRoom": "Camera Deluxe - $129/notte",
+    "suiteRoom": "Suite - $189/notte",
+    "creatingReservation": "Creazione Prenotazione...",
+    "confirmReservation": "Conferma Prenotazione",
+    "errors": {
+      "guestNameRequired": "Il nome dell'ospite è obbligatorio",
+      "emailRequired": "L'email è obbligatoria",
+      "emailInvalid": "Indirizzo email non valido",
+      "checkInRequired": "La data di check-in è obbligatoria",
+      "checkOutRequired": "La data di check-out è obbligatoria",
+      "checkOutAfterCheckIn": "Il check-out deve essere successivo al check-in"
+    }
+  },
+  "card": {
+    "standard": "Standard",
+    "deluxe": "Deluxe",
+    "suite": "Suite",
+    "email": "Email:",
+    "stay": "Soggiorno:",
+    "id": "ID:",
+    "booked": "Prenotato:",
+    "cancelReservation": "Cancella Prenotazione"
+  },
+  "common": {
+    "notice": "Avviso:"
+  }
+}

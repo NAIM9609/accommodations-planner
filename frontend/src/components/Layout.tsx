@@ -2,7 +2,9 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BRAND } from '../lib/brand';
+import LanguageSwitcher from './LanguageSwitcher';
 
 interface LayoutProps {
   children: ReactNode;
@@ -10,6 +12,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const router = useRouter();
+  const { t } = useTranslation();
 
   const navLink = (href: string, label: string) => (
     <Link href={href} style={{
@@ -35,7 +38,7 @@ export default function Layout({ children }: LayoutProps) {
       </Head>
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         {/* Skip link — first focusable element (WCAG 2.4.1) */}
-        <a href="#main-content" className="skip-link">Skip to main content</a>
+        <a href="#main-content" className="skip-link">{t('nav.skipToMain')}</a>
 
         <header style={{
           background: '#fdf9f2',
@@ -50,9 +53,10 @@ export default function Layout({ children }: LayoutProps) {
               🏡 {BRAND.shortName}
             </Link>
             <div className="site-nav__links">
-              {navLink('/', 'Home')}
-              {navLink('/reservations', 'Reservations')}
+              {navLink('/', t('nav.home'))}
+              {navLink('/reservations', t('nav.reservations'))}
             </div>
+            <LanguageSwitcher />
           </nav>
         </header>
 
@@ -70,7 +74,7 @@ export default function Layout({ children }: LayoutProps) {
           <p style={{ margin: '0 0 8px', color: 'white', fontWeight: 600 }}>🏡 {BRAND.shortName}</p>
           <p style={{ margin: '0 0 8px', fontSize: '0.9rem' }}>{BRAND.locationLine} · {BRAND.phone}</p>
           <p style={{ margin: 0, fontSize: '0.8rem' }}>
-            © <span>{BRAND.copyrightYear}</span> {BRAND.shortName}. All rights reserved.
+            © <span>{BRAND.copyrightYear}</span> {BRAND.shortName}. {t('footer.allRightsReserved')}
           </p>
         </footer>
       </div>

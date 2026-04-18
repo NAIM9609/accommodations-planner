@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { Reservation } from '../../lib/apiClient';
 
 interface ReservationCardProps {
@@ -5,14 +6,8 @@ interface ReservationCardProps {
   onCancel: (id: string) => void;
 }
 
-const roomTypeLabel: Record<Reservation['roomType'], string> = {
-  standard: 'Standard',
-  deluxe: 'Deluxe',
-  suite: 'Suite',
-};
-
-const formatDate = (dateStr: string): string => (
-  new Date(dateStr).toLocaleDateString('en-US', {
+const formatDate = (dateStr: string, locale: string): string => (
+  new Date(dateStr).toLocaleDateString(locale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -20,6 +15,14 @@ const formatDate = (dateStr: string): string => (
 );
 
 export default function ReservationCard({ reservation, onCancel }: ReservationCardProps): JSX.Element {
+  const { t, i18n } = useTranslation();
+
+  const roomTypeLabel: Record<Reservation['roomType'], string> = {
+    standard: t('card.standard'),
+    deluxe: t('card.deluxe'),
+    suite: t('card.suite'),
+  };
+
   return (
     <article className="reservation-card reservation-card--luxury">
       <div className="reservation-card__info">
@@ -30,12 +33,12 @@ export default function ReservationCard({ reservation, onCancel }: ReservationCa
           </span>
         </div>
 
-        <p className="reservation-card__line">Email: {reservation.guestEmail}</p>
+        <p className="reservation-card__line">{t('card.email')} {reservation.guestEmail}</p>
         <p className="reservation-card__line">
-          Stay: {formatDate(reservation.checkIn)} - {formatDate(reservation.checkOut)}
+          {t('card.stay')} {formatDate(reservation.checkIn, i18n.language)} - {formatDate(reservation.checkOut, i18n.language)}
         </p>
         <p className="reservation-card__meta">
-          ID: {reservation.id} | Booked: {formatDate(reservation.createdAt)}
+          {t('card.id')} {reservation.id} | {t('card.booked')} {formatDate(reservation.createdAt, i18n.language)}
         </p>
       </div>
 
@@ -45,7 +48,7 @@ export default function ReservationCard({ reservation, onCancel }: ReservationCa
           onClick={() => onCancel(reservation.id)}
           className="reservation-cancel-btn"
         >
-          Cancel Reservation
+          {t('card.cancelReservation')}
         </button>
       </div>
     </article>

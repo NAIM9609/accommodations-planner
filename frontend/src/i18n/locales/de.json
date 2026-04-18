@@ -1,0 +1,130 @@
+{
+  "nav": {
+    "home": "Startseite",
+    "reservations": "Reservierungen",
+    "skipToMain": "Zum Hauptinhalt springen"
+  },
+  "footer": {
+    "allRightsReserved": "Alle Rechte vorbehalten."
+  },
+  "home": {
+    "metaDescription": "Ein erlesenes Küstenrefugium mit kuratierten Suiten, exklusiven Erlebnissen und gehobener Gastronomie.",
+    "heroTitle": "Klippenruhe mit zeitloser mediterraner Seele",
+    "heroSubtitle": "Hoch über dem Meer gelegen, vereint {{brandName}} historische Architektur, botanische Gärten und moderne Gastfreundschaft zu einem immersiven Aufenthalt.",
+    "checkRates": "Preise ansehen",
+    "exploreRetreat": "Das Refugium entdecken",
+    "arrival": "Anreise",
+    "departure": "Abreise",
+    "flexibleDates": "Flexible Daten",
+    "guests": "Gäste",
+    "twoAdults": "2 Erwachsene",
+    "reserveNow": "Jetzt reservieren",
+    "unparalleledStay": "Unvergleichlicher Aufenthalt",
+    "introHeading": "Ein Fünf-Sterne-Refugium für gemächliche Morgen und filmreife Abende",
+    "introDesc": "Ursprünglich als Anwesen auf einem Hügel konzipiert und nun als zeitgemäßes Refugium neu gedacht, bietet unser Retreat meerblickende Terrassen, duftende Zitrushöfe und personalisierten Service, der jedes Detail vorwegnimmt.",
+    "planItinerary": "Reiseplan erstellen",
+    "accommodations": "Unterkünfte",
+    "suitesHeading": "Suiten für dezenten Luxus",
+    "viewRoomDetails": "Zimmerdetails ansehen",
+    "discoverBrand": "Entdecke {{brandName}}",
+    "experiencesHeading": "Kuratierte Erlebnisse über das Refugium hinaus",
+    "speakConcierge": "Mit dem Concierge sprechen",
+    "featuredOffers": "Ausgewählte Angebote",
+    "offersHeading": "Saisonale Vorteile für längere Aufenthalte",
+    "offerCreditTitle": "Erlebnis-Gutschrift",
+    "offerCreditDesc": "Erhalten Sie eine Resort-Gutschrift von $220 für Wellness-Sitzungen, Dining oder private Ausflüge.",
+    "viewOfferTerms": "Angebotsbedingungen ansehen",
+    "offerEscapeTitle": "Suite-Auszeit - 15% Rabatt",
+    "offerEscapeDesc": "Bleiben Sie drei Nächte oder mehr und genießen Sie Vorzugspreise, tägliches Frühstück und beschleunigte Küstentransfers.",
+    "seeAvailability": "Verfügbarkeit prüfen",
+    "wellnessSanctuary": "Wellness-Refugium",
+    "spaHeading": "Erholung in unserem botanischen Spa",
+    "spaDesc": "Exklusive Rituale mit Zitrusölen, Meeresmineralien und Thermaltherapien zur Regeneration von Körper und Geist.",
+    "reserveYourStay": "Aufenthalt reservieren",
+    "suites": {
+      "gardenTerrace": {
+        "name": "Gartenterrassen-Zimmer",
+        "rate": "Ab $289 / Nacht",
+        "desc": "Ein ruhiges Refugium mit privater Terrasse, handgefertigter Bettwäsche und Morgenlicht über dem Obstgarten."
+      },
+      "seaHorizon": {
+        "name": "Meereshorizont-Suite",
+        "rate": "Ab $429 / Nacht",
+        "desc": "Großzügiges Indoor-Outdoor-Wohnen mit Panoramablick auf die Bucht, Marmorbad und kuratierten Willkommensannehmlichkeiten."
+      },
+      "grandVilla": {
+        "name": "Grand Villa Residenz",
+        "rate": "Ab $690 / Nacht",
+        "desc": "Ein privates Residenz-Erlebnis mit persönlichem Host-Service, Sonnenuntergangs-Lounge-Deck und Chef-Frühstück."
+      }
+    },
+    "experiences": {
+      "sunsetCruise": {
+        "title": "Küsten-Sonnenuntergangsfahrt",
+        "detail": "3 Stunden",
+        "blurb": "Segeln Sie zur goldenen Stunde entlang der Klippen mit einer Sommelier-geführten Verkostung lokaler Schaumweine."
+      },
+      "vineyardJourney": {
+        "title": "Vulkanische Weinbergstour",
+        "detail": "Halber Tag",
+        "blurb": "Reisen Sie ins Hochland für Kellertouren, Chef-begleitetes Mittagessen und Ausblicke über antike Terrassen."
+      },
+      "heritageWalk": {
+        "title": "Kino- & Kulturspaziergang",
+        "detail": "4 Stunden",
+        "blurb": "Entdecken Sie geschichtsträchtige Plätze und ikonische Drehorte mit einem privaten Kultur-Concierge."
+      }
+    }
+  },
+  "reservations": {
+    "pageTitle": "Reservierungen",
+    "planYourStay": "Planen Sie Ihren Aufenthalt",
+    "subtitle": "Erstellen Sie neue Buchungen, überprüfen Sie aktive Aufenthalte und verwalten Sie die Verfügbarkeit an einem Ort.",
+    "closeForm": "Formular schließen",
+    "newReservation": "Neue Reservierung",
+    "createReservation": "Reservierung erstellen",
+    "loadingTitle": "Reservierungen werden geladen",
+    "loadingDesc": "Neueste Buchungen und Verfügbarkeitsdetails werden abgerufen.",
+    "emptyTitle": "Noch keine Reservierungen",
+    "emptyDesc": "Erstellen Sie Ihre erste Reservierung, um Gastaufenthalte zu verwalten.",
+    "errorLoad": "Fehler beim Laden der Reservierungen. Bitte überprüfen Sie Ihre API-Konfiguration.",
+    "errorCreate": "Fehler beim Erstellen der Reservierung. Bitte versuchen Sie es erneut.",
+    "errorDelete": "Fehler beim Löschen der Reservierung. Bitte versuchen Sie es erneut.",
+    "confirmCancel": "Möchten Sie diese Reservierung wirklich stornieren?"
+  },
+  "form": {
+    "guestName": "Name des Gastes",
+    "guestNamePlaceholder": "Max Mustermann",
+    "emailAddress": "E-Mail-Adresse",
+    "emailPlaceholder": "max@beispiel.de",
+    "checkInDate": "Check-in-Datum",
+    "checkOutDate": "Check-out-Datum",
+    "roomType": "Zimmertyp",
+    "standardRoom": "Standardzimmer - $89/Nacht",
+    "deluxeRoom": "Deluxe-Zimmer - $129/Nacht",
+    "suiteRoom": "Suite - $189/Nacht",
+    "creatingReservation": "Reservierung wird erstellt...",
+    "confirmReservation": "Reservierung bestätigen",
+    "errors": {
+      "guestNameRequired": "Der Name des Gastes ist erforderlich",
+      "emailRequired": "E-Mail ist erforderlich",
+      "emailInvalid": "Ungültige E-Mail-Adresse",
+      "checkInRequired": "Check-in-Datum ist erforderlich",
+      "checkOutRequired": "Check-out-Datum ist erforderlich",
+      "checkOutAfterCheckIn": "Check-out muss nach dem Check-in liegen"
+    }
+  },
+  "card": {
+    "standard": "Standard",
+    "deluxe": "Deluxe",
+    "suite": "Suite",
+    "email": "E-Mail:",
+    "stay": "Aufenthalt:",
+    "id": "ID:",
+    "booked": "Gebucht:",
+    "cancelReservation": "Reservierung stornieren"
+  },
+  "common": {
+    "notice": "Hinweis:"
+  }
+}
