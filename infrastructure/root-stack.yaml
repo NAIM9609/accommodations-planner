@@ -52,11 +52,6 @@ Parameters:
     Type: String
     Default: ""
     Description: Subdomain prefix for custom domain
-  CreateGithubOidcProvider:
-    Type: String
-    Default: "false"
-    AllowedValues: ["true", "false"]
-    Description: Create GitHub OIDC provider (dev bootstrap only)
   TemplatesBucketName:
     Type: String
     Description: S3 bucket containing nested stack templates
@@ -82,11 +77,6 @@ Rules:
     Assertions:
       - Assert: !Not [!Equals [!Ref AmplifyCustomDomainName, ""]]
         AssertDescription: AmplifyCustomDomainName must be set when AmplifyCustomDomainEnabled is true.
-  OidcProviderDevOnly:
-    RuleCondition: !Equals [!Ref CreateGithubOidcProvider, "true"]
-    Assertions:
-      - Assert: !Equals [!Ref Environment, dev]
-        AssertDescription: CreateGithubOidcProvider may only be true for the dev environment.
 
 Resources:
   DynamoDBStack:
@@ -185,7 +175,6 @@ Resources:
         Prefix: !Sub "${AppName}-${Environment}"
         Environment: !Ref Environment
         GithubRepo: !Ref GithubRepo
-        CreateGithubOidcProvider: !Ref CreateGithubOidcProvider
       Tags:
         - Key: Project
           Value: !Ref AppName

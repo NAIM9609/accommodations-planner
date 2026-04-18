@@ -12,30 +12,11 @@ Parameters:
   GithubRepo:
     Type: String
     Description: GitHub repository in owner/repo format
-  CreateGithubOidcProvider:
-    Type: String
-    Default: "false"
-    AllowedValues: ["true", "false"]
-    Description: Create the GitHub OIDC provider (dev bootstrap only)
 
 Conditions:
-  ShouldCreateOidcProvider: !Equals [!Ref CreateGithubOidcProvider, "true"]
   IsProd: !Equals [!Ref Environment, prod]
 
 Resources:
-  GithubOidcProvider:
-    Type: AWS::IAM::OIDCProvider
-    Condition: ShouldCreateOidcProvider
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      Url: https://token.actions.githubusercontent.com
-      ClientIdList:
-        - sts.amazonaws.com
-      ThumbprintList:
-        - 6938fd4d98bab03faadb97b34396831e3780aea1
-        - 1c58a3a8518e8759bf075b76b750d4f2df264fcd
-
   GithubActionsRole:
     Type: AWS::IAM::Role
     Properties:
@@ -45,10 +26,7 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Federated: !If
-                - ShouldCreateOidcProvider
-                - !Ref GithubOidcProvider
-                - !Sub "arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
+              Federated: !Sub "arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
             Action: sts:AssumeRoleWithWebIdentity
             Condition:
               StringLike:
