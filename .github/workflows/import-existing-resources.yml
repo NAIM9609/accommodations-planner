@@ -51,16 +51,16 @@ jobs:
       run:
         working-directory: infrastructure
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc47b72955a7e9a5d659f6dfea8661cbcd3d # v4.3.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.DEPLOY_AWS_REGION }}
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@b9cd54531c595b44fc4a0e4b5c8e8e60c49d3c20 # v3.1.2
         with:
           terraform_version: '1.7.5'
 

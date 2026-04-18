@@ -15,6 +15,9 @@
 #     retried automatically.
 #   - Resources not found in AWS (e.g. first-time bootstrap) are also skipped.
 
+# -e (errexit) is intentionally omitted: individual import failures are handled
+# explicitly inside import_resource(), and grep returning exit code 1 on a
+# "not found" probe is expected normal behaviour throughout this script.
 set -uo pipefail
 
 PREFIX="${1:?Usage: $0 <prefix> <aws_region> [lock_timeout]}"
@@ -138,7 +141,7 @@ import_lambda_function() {
     --region "${AWS_REGION}" \
     --output text \
     --query 'Configuration.FunctionName' \
-    &>/dev/null 2>&1; then
+    &>/dev/null; then
     echo "  Lambda function '${name}' not found in AWS — skipping."
     return 0
   fi
