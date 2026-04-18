@@ -6,6 +6,17 @@ on:
       confirm:
         description: 'Type "deploy-prod" to confirm production deployment'
         required: true
+      stacks:
+        description: "Which stacks to deploy (disabling a stack DELETES it)"
+        required: false
+        type: choice
+        default: all
+        options:
+          - all
+          - core
+          - no-amplify
+          - no-iam
+          - iam-only
       skip_cleanup:
         description: Skip automatic orphaned resource cleanup
         required: false
@@ -45,6 +56,11 @@ jobs:
       params_file: params/prod.json
       skip_cleanup: ${{ github.event.inputs.skip_cleanup == 'true' }}
       force_cleanup_dynamo: ${{ github.event.inputs.force_cleanup_dynamo == 'true' }}
+      enable_dynamodb: ${{ github.event.inputs.stacks != 'iam-only' }}
+      enable_lambda: ${{ github.event.inputs.stacks != 'iam-only' }}
+      enable_api_gateway: ${{ github.event.inputs.stacks != 'iam-only' }}
+      enable_amplify: ${{ github.event.inputs.stacks == 'all' || github.event.inputs.stacks == '' || github.event.inputs.stacks == 'no-iam' }}
+      enable_iam: ${{ github.event.inputs.stacks != 'core' && github.event.inputs.stacks != 'no-iam' }}
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

@@ -22,6 +22,31 @@ on:
         required: false
         type: boolean
         default: false
+      enable_dynamodb:
+        description: Deploy the DynamoDB stack
+        required: false
+        type: boolean
+        default: true
+      enable_lambda:
+        description: Deploy the Lambda stack
+        required: false
+        type: boolean
+        default: true
+      enable_api_gateway:
+        description: Deploy the API Gateway stack
+        required: false
+        type: boolean
+        default: true
+      enable_amplify:
+        description: Deploy the Amplify stack
+        required: false
+        type: boolean
+        default: true
+      enable_iam:
+        description: Deploy the IAM stack
+        required: false
+        type: boolean
+        default: true
     secrets:
       AWS_ACCESS_KEY_ID:
         required: true
@@ -151,6 +176,18 @@ jobs:
 
           echo "overrides=${OVERRIDES}" >> "$GITHUB_OUTPUT"
 
+      - name: Append stack selector overrides
+        id: stack_params
+        run: |
+          set -euo pipefail
+          OVERRIDES="${{ steps.params.outputs.overrides }}"
+          OVERRIDES="${OVERRIDES} EnableDynamoDB=${{ inputs.enable_dynamodb }}"
+          OVERRIDES="${OVERRIDES} EnableLambda=${{ inputs.enable_lambda }}"
+          OVERRIDES="${OVERRIDES} EnableApiGateway=${{ inputs.enable_api_gateway }}"
+          OVERRIDES="${OVERRIDES} EnableAmplify=${{ inputs.enable_amplify }}"
+          OVERRIDES="${OVERRIDES} EnableIam=${{ inputs.enable_iam }}"
+          echo "overrides=${OVERRIDES}" >> "$GITHUB_OUTPUT"
+
       - name: Clean up failed stack if in ROLLBACK_COMPLETE
         run: |
           set -euo pipefail
@@ -181,7 +218,7 @@ jobs:
           aws cloudformation deploy \
             --template-file root-stack.yaml \
             --stack-name "${STACK_NAME}" \
-            --parameter-overrides ${{ steps.params.outputs.overrides }} \
+            --parameter-overrides ${{ steps.stack_params.outputs.overrides }} \
             --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
             --no-fail-on-empty-changeset \
             --tags \
@@ -225,5 +262,9 @@ jobs:
             fi
             echo "Output '${name}' = ${value}"
           }
-          check_output "ApiUrl"
-          check_output "DynamoDBTableName"
+          if [ "${{ inputs.enable_api_gateway }}" = "true" ]; then
+            check_output "ApiUrl"
+          fi
+          if [ "${{ inputs.enable_dynamodb }}" = "true" ]; then
+            check_output "DynamoDBTableName"
+          fi
