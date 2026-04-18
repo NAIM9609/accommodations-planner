@@ -112,7 +112,11 @@ jobs:
             exit 1
           fi
           echo "plan_exit=${PLAN_EXIT}" >> "$GITHUB_OUTPUT"
-          [ "$PLAN_EXIT" -eq 0 ] && echo "No changes detected – skipping apply." || echo "Changes detected – apply will run."
+          if [ "$PLAN_EXIT" -eq 0 ]; then
+            echo "No changes detected – skipping apply."
+          else
+            echo "Changes detected – apply will run."
+          fi
 
       - name: Terraform apply
         if: ${{ steps.plan.outputs.plan_exit == '2' }}
