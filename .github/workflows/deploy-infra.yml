@@ -27,8 +27,10 @@ on:
         default: true
       delete_and_recreate:
         description: >-
-          If true, plan/apply use -replace for module.lambda, module.api_gateway, and module.amplify (not DynamoDB).
-          Use only when you intend to tear down and recreate those stacks. Requires manual workflow run; ignored on push.
+          If true, every resource found in module.lambda, module.api_gateway, and module.amplify is force-replaced
+          (destroyed then recreated) by querying 'terraform state list' and passing a -replace=<addr> flag for
+          each matching resource. DynamoDB is never affected. Use only when you intend to tear down and recreate
+          those stacks. Requires manual workflow_dispatch; ignored on push.
         required: false
         type: boolean
         default: false
@@ -89,11 +91,6 @@ jobs:
       - name: Select workspace
         run: terraform workspace select -or-create ${{ inputs.environment }}
 
-      - name: Replace mode (audit)
-        if: ${{ inputs.delete_and_recreate == true }}
-        run: |
-          echo "delete_and_recreate=true: plan/apply will pass -replace for module.lambda, module.api_gateway, module.amplify (DynamoDB unchanged)."
-
       - name: Import existing resources into state
         if: ${{ inputs.import_existing_resources }}
         env:
@@ -103,37 +100,63 @@ jobs:
           TF_VAR_amplify_github_token: ${{ secrets.AMPLIFY_GITHUB_TOKEN }}
         run: bash ../.github/scripts/terraform-import-existing.sh "${{ inputs.prefix }}" "${{ secrets.DEPLOY_AWS_REGION }}" "${{ inputs.import_lock_timeout }}"
 
+      - name: Build force-replace targets
+        if: ${{ inputs.delete_and_recreate == true }}
+        run: |
+          set -euo pipefail
+          # terraform -replace requires individual resource instance addresses, not module paths.
+          # Query the current state to collect every address under the three target modules.
+          TF_STATE=$(terraform state list 2>/dev/null || true)
+          echo "$TF_STATE" \
+            | grep -E '^module\.(lambda|api_gateway|amplify)\.' \
+            > /tmp/replace_targets.txt \
+            || true
+          echo "Resources to force-replace:"
+          if [ -s /tmp/replace_targets.txt ]; then
+            cat /tmp/replace_targets.txt
+          else
+            echo "(none found in state – resources will be created fresh)"
+          fi
+
       - name: Terraform plan
-        env:
-          TF_REPLACE_ARGS: ${{ inputs.delete_and_recreate == true && '-replace=module.lambda -replace=module.api_gateway -replace=module.amplify' || '' }}
         run: |
           set -euo pipefail
           TFVARS_ARG=""
           if [ -n "${{ inputs.tfvars_file }}" ]; then
             TFVARS_ARG="-var-file=${{ inputs.tfvars_file }}"
           fi
+          REPLACE_ARGS=()
+          if [ -f /tmp/replace_targets.txt ] && [ -s /tmp/replace_targets.txt ]; then
+            while IFS= read -r addr; do
+              REPLACE_ARGS+=("-replace=${addr}")
+            done < /tmp/replace_targets.txt
+          fi
           terraform plan \
-            ${TFVARS_ARG} \
+            ${TFVARS_ARG:+"$TFVARS_ARG"} \
             -lock-timeout=${{ inputs.plan_apply_lock_timeout }} \
-            ${TF_REPLACE_ARGS} \
+            "${REPLACE_ARGS[@]}" \
             -var="environment=${{ inputs.environment }}" \
             -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" \
             -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
 
       - name: Terraform apply
-        env:
-          TF_REPLACE_ARGS: ${{ inputs.delete_and_recreate == true && '-replace=module.lambda -replace=module.api_gateway -replace=module.amplify' || '' }}
         run: |
           set -euo pipefail
           TFVARS_ARG=""
           if [ -n "${{ inputs.tfvars_file }}" ]; then
             TFVARS_ARG="-var-file=${{ inputs.tfvars_file }}"
           fi
+          REPLACE_ARGS=()
+          if [ -f /tmp/replace_targets.txt ] && [ -s /tmp/replace_targets.txt ]; then
+            while IFS= read -r addr; do
+              REPLACE_ARGS+=("-replace=${addr}")
+            done < /tmp/replace_targets.txt
+          fi
           terraform apply \
             -auto-approve \
-            ${TFVARS_ARG} \
+            ${TFVARS_ARG:+"$TFVARS_ARG"} \
             -lock-timeout=${{ inputs.plan_apply_lock_timeout }} \
-            ${TF_REPLACE_ARGS} \
+            "${REPLACE_ARGS[@]}" \
             -var="environment=${{ inputs.environment }}" \
             -var="aws_region=${{ secrets.DEPLOY_AWS_REGION }}" \
             -var="amplify_github_token=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
