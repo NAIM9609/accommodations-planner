@@ -25,19 +25,46 @@ jobs:
 
       # Start LocalStack (Community Edition) with all services enabled.
       # Port mapping matches docker-compose.yml: host 14566 → container 4566.
+      # A built-in Docker healthcheck is attached so the wait step can also
+      # consult Docker's own health status in addition to the HTTP poll.
       - name: Start LocalStack
         run: |
           docker run -d --name localstack \
             -p 14566:4566 \
             -e DEBUG=0 \
+            --health-cmd="curl -fsS http://localhost:4566/_localstack/health || exit 1" \
+            --health-interval=5s \
+            --health-timeout=2s \
+            --health-retries=30 \
             localstack/localstack:3.8.0
 
       - name: Wait for LocalStack to be healthy
         run: |
-          echo "Waiting for LocalStack to become healthy..."
-          curl --retry 30 --retry-delay 3 --retry-connrefused --silent --fail \
-            http://localhost:14566/_localstack/health > /dev/null
-          echo "LocalStack is healthy."
+          set -euo pipefail
+
+          echo "Waiting for LocalStack container to be running..."
+          for i in {1..30}; do
+            status="$(docker inspect -f '{{.State.Status}}' localstack 2>/dev/null || true)"
+            if [ "$status" = "running" ]; then
+              break
+            fi
+            sleep 2
+          done
+
+          echo "Waiting for LocalStack health endpoint..."
+          for i in {1..40}; do
+            if curl --silent --show-error --fail \
+              http://localhost:14566/_localstack/health > /dev/null; then
+              echo "LocalStack is healthy."
+              exit 0
+            fi
+            sleep 3
+          done
+
+          echo "LocalStack did not become healthy in time. Dumping logs:"
+          docker ps -a
+          docker logs --tail=300 localstack || true
+          exit 1
 
       - uses: hashicorp/setup-terraform@v3
         with:
