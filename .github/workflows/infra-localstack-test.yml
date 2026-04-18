@@ -43,13 +43,21 @@ jobs:
           set -euo pipefail
 
           echo "Waiting for LocalStack container to be running..."
+          container_running=false
           for i in {1..30}; do
             status="$(docker inspect -f '{{.State.Status}}' localstack 2>/dev/null || true)"
             if [ "$status" = "running" ]; then
+              container_running=true
               break
             fi
             sleep 2
           done
+          if [ "$container_running" = "false" ]; then
+            echo "LocalStack container did not reach 'running' state. Current state:"
+            docker ps -a
+            docker logs --tail=100 localstack || true
+            exit 1
+          fi
 
           echo "Waiting for LocalStack health endpoint..."
           for i in {1..40}; do
