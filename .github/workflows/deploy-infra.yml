@@ -141,6 +141,20 @@ jobs:
 
           echo "overrides=${OVERRIDES}" >> "$GITHUB_OUTPUT"
 
+      - name: Clean up failed stack if in ROLLBACK_COMPLETE
+        run: |
+          set -euo pipefail
+          STACK_STATUS="$(aws cloudformation describe-stacks \
+            --stack-name "${STACK_NAME}" \
+            --query "Stacks[0].StackStatus" \
+            --output text 2>/dev/null || echo "DOES_NOT_EXIST")"
+          if [ "$STACK_STATUS" = "ROLLBACK_COMPLETE" ]; then
+            echo "Stack is in ROLLBACK_COMPLETE state. Deleting before re-deploy..."
+            aws cloudformation delete-stack --stack-name "${STACK_NAME}"
+            aws cloudformation wait stack-delete-complete --stack-name "${STACK_NAME}"
+            echo "Stack deleted."
+          fi
+
       - name: Deploy CloudFormation stack
         run: |
           set -euo pipefail
