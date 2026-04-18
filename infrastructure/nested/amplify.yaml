@@ -1,6 +1,12 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Amplify frontend app with GitHub integration
 
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W1030 # CustomDomainName is empty when disabled; Condition guards usage
+
 Parameters:
   Prefix:
     Type: String
@@ -31,8 +37,6 @@ Parameters:
     Type: String
     Default: ""
     Description: Custom domain name (e.g. example.com)
-    AllowedPattern: '^$|^(((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])\.)+((?!-)[A-Za-z0-9-]{1,62}[A-Za-z0-9])(\.)?$'
-    ConstraintDescription: "Must be empty or a valid DNS domain name (e.g., example.com)"
   CustomDomainPrefix:
     Type: String
     Default: ""
