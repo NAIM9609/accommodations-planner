@@ -1,0 +1,84 @@
+name: Import Existing Resources
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+      lock_timeout:
+        description: 'Terraform lock timeout (e.g. 45s, 2m)'
+        required: false
+        default: '45s'
+
+concurrency:
+  # Prevent concurrent import runs for the same environment, which would race
+  # on the DynamoDB state lock.
+  group: import-existing-${{ github.event.inputs.environment }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate-secrets:
+    name: Validate Secrets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure required secrets are present
+        run: |
+          missing=()
+          [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]     && missing+=(AWS_ACCESS_KEY_ID)
+          [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ] && missing+=(AWS_SECRET_ACCESS_KEY)
+          [ -z "${{ secrets.DEPLOY_AWS_REGION }}" ]     && missing+=(DEPLOY_AWS_REGION)
+          [ -z "${{ secrets.AMPLIFY_GITHUB_TOKEN }}" ]  && missing+=(AMPLIFY_GITHUB_TOKEN)
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "Missing required secrets: ${missing[*]}"
+            exit 1
+          fi
+
+  import-existing:
+    name: Import Existing Resources (${{ github.event.inputs.environment }})
+    needs: [validate-secrets]
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    defaults:
+      run:
+        working-directory: infrastructure
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@7474bc47b72955a7e9a5d659f6dfea8661cbcd3d # v4.3.1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.DEPLOY_AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@b9cd54531c595b44fc4a0e4b5c8e8e60c49d3c20 # v3.1.2
+        with:
+          terraform_version: '1.7.5'
+
+      - name: Terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=accommodations-planner-tf-state" \
+            -backend-config="key=accommodations-planner/${{ github.event.inputs.environment }}.tfstate" \
+            -backend-config="region=${{ secrets.DEPLOY_AWS_REGION }}" \
+            -backend-config="dynamodb_table=accommodations-planner-tf-lock" \
+            -backend-config="encrypt=true"
+
+      - name: Select Terraform workspace
+        run: terraform workspace select -or-create ${{ github.event.inputs.environment }}
+
+      - name: Import existing resources
+        run: |
+          bash ../.github/scripts/terraform-import-existing.sh \
+            "accommodations-planner-${{ github.event.inputs.environment }}" \
+            "${{ secrets.DEPLOY_AWS_REGION }}" \
+            "${{ github.event.inputs.lock_timeout }}"
