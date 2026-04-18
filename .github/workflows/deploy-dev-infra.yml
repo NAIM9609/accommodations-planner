@@ -2,6 +2,17 @@ name: Deploy Dev Infra
 
 on:
   workflow_dispatch:
+    inputs:
+      skip_cleanup:
+        description: Skip automatic orphaned resource cleanup
+        required: false
+        type: boolean
+        default: false
+      force_cleanup_dynamo:
+        description: Also delete orphaned DynamoDB table (DATA LOSS)
+        required: false
+        type: boolean
+        default: false
   push:
     branches: [master]
     paths:
@@ -22,6 +33,8 @@ jobs:
     uses: ./.github/workflows/deploy-infra.yml
     with:
       environment: dev
+      skip_cleanup: ${{ github.event.inputs.skip_cleanup == 'true' }}
+      force_cleanup_dynamo: ${{ github.event.inputs.force_cleanup_dynamo == 'true' }}
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

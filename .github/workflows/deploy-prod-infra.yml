@@ -6,6 +6,16 @@ on:
       confirm:
         description: 'Type "deploy-prod" to confirm production deployment'
         required: true
+      skip_cleanup:
+        description: Skip automatic orphaned resource cleanup
+        required: false
+        type: boolean
+        default: false
+      force_cleanup_dynamo:
+        description: Also delete orphaned DynamoDB table (DATA LOSS)
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-prod-infra
@@ -33,6 +43,8 @@ jobs:
     with:
       environment: prod
       params_file: params/prod.json
+      skip_cleanup: ${{ github.event.inputs.skip_cleanup == 'true' }}
+      force_cleanup_dynamo: ${{ github.event.inputs.force_cleanup_dynamo == 'true' }}
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

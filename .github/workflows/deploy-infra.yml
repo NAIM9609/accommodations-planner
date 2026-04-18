@@ -12,6 +12,16 @@ on:
         required: false
         type: string
         default: ''
+      skip_cleanup:
+        description: Skip automatic orphaned resource cleanup
+        required: false
+        type: boolean
+        default: false
+      force_cleanup_dynamo:
+        description: Also delete orphaned DynamoDB table (DATA LOSS risk)
+        required: false
+        type: boolean
+        default: false
     secrets:
       AWS_ACCESS_KEY_ID:
         required: true
@@ -155,26 +165,15 @@ jobs:
             echo "Stack deleted."
           fi
 
-      - name: Clean up orphaned IAM role from previous failed deploy
+      - name: Clean up orphaned resources from failed deploys
+        if: ${{ inputs.skip_cleanup != true }}
         run: |
           set -euo pipefail
-          ROLE_NAME="${STACK_NAME##accommodations-planner-}"
-          ROLE_NAME="accommodations-planner-${ROLE_NAME}-github-actions"
-          if aws iam get-role --role-name "$ROLE_NAME" >/dev/null 2>&1; then
-            echo "Found orphaned role: $ROLE_NAME — cleaning up..."
-            # Delete inline policies
-            for policy in $(aws iam list-role-policies --role-name "$ROLE_NAME" --query "PolicyNames[]" --output text); do
-              aws iam delete-role-policy --role-name "$ROLE_NAME" --policy-name "$policy"
-            done
-            # Detach managed policies
-            for arn in $(aws iam list-attached-role-policies --role-name "$ROLE_NAME" --query "AttachedPolicies[].PolicyArn" --output text); do
-              aws iam detach-role-policy --role-name "$ROLE_NAME" --policy-arn "$arn"
-            done
-            aws iam delete-role --role-name "$ROLE_NAME"
-            echo "Orphaned role deleted."
-          else
-            echo "No orphaned role found."
-          fi
+          export PREFIX="${STACK_NAME}"
+          export STACK_NAME
+          export CLEANUP_DYNAMO="${{ inputs.force_cleanup_dynamo }}"
+          chmod +x scripts/cleanup-orphaned-resources.sh
+          bash scripts/cleanup-orphaned-resources.sh
 
       - name: Deploy CloudFormation stack
         run: |
