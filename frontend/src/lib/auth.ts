@@ -6,6 +6,12 @@ import {
 } from 'amazon-cognito-identity-js';
 import { getCognitoUserPoolId, getCognitoClientId } from './config';
 
+export interface NewPasswordRequiredChallenge {
+  challengeName: 'NEW_PASSWORD_REQUIRED';
+  user: CognitoUser;
+  userAttributes: Record<string, string>;
+}
+
 function getUserPool(): CognitoUserPool {
   return new CognitoUserPool({
     UserPoolId: getCognitoUserPoolId(),
@@ -13,7 +19,10 @@ function getUserPool(): CognitoUserPool {
   });
 }
 
-export function signIn(email: string, password: string): Promise<CognitoUserSession> {
+export function signIn(
+  email: string,
+  password: string,
+): Promise<CognitoUserSession | NewPasswordRequiredChallenge> {
   return new Promise((resolve, reject) => {
     const user = new CognitoUser({ Username: email, Pool: getUserPool() });
     const auth = new AuthenticationDetails({ Username: email, Password: password });
@@ -21,8 +30,25 @@ export function signIn(email: string, password: string): Promise<CognitoUserSess
     user.authenticateUser(auth, {
       onSuccess: resolve,
       onFailure: reject,
-      newPasswordRequired: () =>
-        reject(new Error('Password reset required. Please contact your administrator.')),
+      newPasswordRequired: (attributes) =>
+        resolve({
+          challengeName: 'NEW_PASSWORD_REQUIRED',
+          user,
+          userAttributes: attributes as Record<string, string>,
+        }),
+    });
+  });
+}
+
+export function completeNewPasswordChallenge(
+  user: CognitoUser,
+  newPassword: string,
+  userAttributes: Record<string, string>,
+): Promise<CognitoUserSession> {
+  return new Promise((resolve, reject) => {
+    user.completeNewPasswordChallenge(newPassword, userAttributes, {
+      onSuccess: resolve,
+      onFailure: reject,
     });
   });
 }

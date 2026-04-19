@@ -1,12 +1,26 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import type { ReactNode } from 'react';
-import { signIn, signOut, getCurrentSession } from '../lib/auth';
+import type { CognitoUser } from 'amazon-cognito-identity-js';
+import {
+  signIn,
+  signOut,
+  getCurrentSession,
+  completeNewPasswordChallenge as submitNewPasswordChallenge,
+} from '../lib/auth';
+
+interface AuthChallengeState {
+  type: 'NEW_PASSWORD_REQUIRED' | null;
+  user: CognitoUser | null;
+  userAttributes: Record<string, string> | null;
+}
 
 interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  challengeState: AuthChallengeState;
+  completeNewPasswordChallenge: (newPassword: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -16,6 +30,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [challengeState, setChallengeState] = useState<AuthChallengeState>({
+    type: null,
+    user: null,
+    userAttributes: null,
+  });
 
   useEffect(() => {
     getCurrentSession()
@@ -25,18 +44,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    await signIn(email, password);
+    const result = await signIn(email, password);
+
+    if ('challengeName' in result && result.challengeName === 'NEW_PASSWORD_REQUIRED') {
+      setChallengeState({
+        type: result.challengeName,
+        user: result.user,
+        userAttributes: result.userAttributes,
+      });
+      return;
+    }
+
+    setChallengeState({ type: null, user: null, userAttributes: null });
     setIsAuthenticated(true);
   }, []);
 
+  const completeNewPasswordChallenge = useCallback(
+    async (newPassword: string) => {
+      if (!challengeState.user || !challengeState.userAttributes) {
+        throw new Error('Password setup session expired. Please log in again.');
+      }
+
+      await submitNewPasswordChallenge(
+        challengeState.user,
+        newPassword,
+        challengeState.userAttributes,
+      );
+
+      setChallengeState({ type: null, user: null, userAttributes: null });
+      setIsAuthenticated(true);
+    },
+    [challengeState],
+  );
+
   const logout = useCallback(() => {
     signOut();
+    setChallengeState({ type: null, user: null, userAttributes: null });
     setIsAuthenticated(false);
     router.push('/login');
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated,
+        isLoading,
+        login,
+        challengeState,
+        completeNewPasswordChallenge,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -9,7 +9,13 @@ import { BRAND } from '../lib/brand';
 export default function LoginPage(): JSX.Element {
   const { t } = useTranslation();
   const router = useRouter();
-  const { isAuthenticated, isLoading, login } = useAuth();
+  const {
+    isAuthenticated,
+    isLoading,
+    login,
+    challengeState,
+    completeNewPasswordChallenge,
+  } = useAuth();
 
   // Use an explicit allowlist to prevent open redirect attacks.
   // Any returnTo value not in this list falls back to the default.
@@ -19,8 +25,11 @@ export default function LoginPage(): JSX.Element {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const isNewPasswordStep = challengeState.type === 'NEW_PASSWORD_REQUIRED';
 
   // If already authenticated, redirect immediately
   useEffect(() => {
@@ -29,7 +38,7 @@ export default function LoginPage(): JSX.Element {
     }
   }, [isAuthenticated, isLoading, router, returnTo]);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleInitialSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
@@ -38,6 +47,26 @@ export default function LoginPage(): JSX.Element {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message || t('auth.errorGeneric'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleNewPasswordSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+
+    if (newPassword !== confirmPassword) {
+      setError(t('auth.passwordMismatch'));
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await completeNewPasswordChallenge(newPassword);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message || t('auth.challengeExpired'));
     } finally {
       setSubmitting(false);
     }
@@ -97,72 +126,163 @@ export default function LoginPage(): JSX.Element {
               color: 'var(--lux-ink)',
               letterSpacing: '-0.01em',
             }}>
-              {t('auth.heading')}
+              {isNewPasswordStep ? t('auth.newPasswordRequired') : t('auth.heading')}
             </h1>
           </div>
 
-          <form onSubmit={handleSubmit} noValidate>
-            {/* Email */}
-            <div style={{ marginBottom: '16px' }}>
-              <label
-                htmlFor="login-email"
-                style={{ display: 'block', marginBottom: '6px', fontWeight: 600, fontSize: '0.875rem', color: 'var(--lux-ink)' }}
-              >
-                {t('auth.emailLabel')}
-              </label>
-              <input
-                id="login-email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                aria-invalid={error ? 'true' : 'false'}
-                aria-describedby={error ? 'login-error' : undefined}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: '6px',
-                  border: `1px solid ${error ? '#c0392b' : 'var(--lux-line)'}`,
-                  fontSize: '1rem',
-                  color: 'var(--lux-ink)',
-                  background: '#fafafa',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
+          <form onSubmit={isNewPasswordStep ? handleNewPasswordSubmit : handleInitialSubmit} noValidate>
+            {isNewPasswordStep ? (
+              <>
+                <p
+                  style={{
+                    margin: '0 0 16px',
+                    color: 'var(--lux-muted)',
+                    fontSize: '0.95rem',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {t('auth.newPasswordDesc')}
+                </p>
 
-            {/* Password */}
-            <div style={{ marginBottom: '24px' }}>
-              <label
-                htmlFor="login-password"
-                style={{ display: 'block', marginBottom: '6px', fontWeight: 600, fontSize: '0.875rem', color: 'var(--lux-ink)' }}
-              >
-                {t('auth.passwordLabel')}
-              </label>
-              <input
-                id="login-password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                aria-invalid={error ? 'true' : 'false'}
-                aria-describedby={error ? 'login-error' : undefined}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: '6px',
-                  border: `1px solid ${error ? '#c0392b' : 'var(--lux-line)'}`,
-                  fontSize: '1rem',
-                  color: 'var(--lux-ink)',
-                  background: '#fafafa',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label
+                    htmlFor="login-new-password"
+                    style={{ display: 'block', marginBottom: '6px', fontWeight: 600, fontSize: '0.875rem', color: 'var(--lux-ink)' }}
+                  >
+                    {t('auth.newPasswordLabel')}
+                  </label>
+                  <input
+                    id="login-new-password"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    minLength={8}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    aria-invalid={error ? 'true' : 'false'}
+                    aria-describedby={error ? 'login-error' : 'login-password-rules'}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '6px',
+                      border: `1px solid ${error ? '#c0392b' : 'var(--lux-line)'}`,
+                      fontSize: '1rem',
+                      color: 'var(--lux-ink)',
+                      background: '#fafafa',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '12px' }}>
+                  <label
+                    htmlFor="login-confirm-password"
+                    style={{ display: 'block', marginBottom: '6px', fontWeight: 600, fontSize: '0.875rem', color: 'var(--lux-ink)' }}
+                  >
+                    {t('auth.confirmPasswordLabel')}
+                  </label>
+                  <input
+                    id="login-confirm-password"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    minLength={8}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    aria-invalid={error ? 'true' : 'false'}
+                    aria-describedby={error ? 'login-error' : 'login-password-rules'}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '6px',
+                      border: `1px solid ${error ? '#c0392b' : 'var(--lux-line)'}`,
+                      fontSize: '1rem',
+                      color: 'var(--lux-ink)',
+                      background: '#fafafa',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+
+                <p
+                  id="login-password-rules"
+                  style={{
+                    margin: '0 0 20px',
+                    color: 'var(--lux-muted)',
+                    fontSize: '0.8125rem',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {t('auth.passwordRequirements')}
+                </p>
+              </>
+            ) : (
+              <>
+                {/* Email */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label
+                    htmlFor="login-email"
+                    style={{ display: 'block', marginBottom: '6px', fontWeight: 600, fontSize: '0.875rem', color: 'var(--lux-ink)' }}
+                  >
+                    {t('auth.emailLabel')}
+                  </label>
+                  <input
+                    id="login-email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    aria-invalid={error ? 'true' : 'false'}
+                    aria-describedby={error ? 'login-error' : undefined}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '6px',
+                      border: `1px solid ${error ? '#c0392b' : 'var(--lux-line)'}`,
+                      fontSize: '1rem',
+                      color: 'var(--lux-ink)',
+                      background: '#fafafa',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+
+                {/* Password */}
+                <div style={{ marginBottom: '24px' }}>
+                  <label
+                    htmlFor="login-password"
+                    style={{ display: 'block', marginBottom: '6px', fontWeight: 600, fontSize: '0.875rem', color: 'var(--lux-ink)' }}
+                  >
+                    {t('auth.passwordLabel')}
+                  </label>
+                  <input
+                    id="login-password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    aria-invalid={error ? 'true' : 'false'}
+                    aria-describedby={error ? 'login-error' : undefined}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '6px',
+                      border: `1px solid ${error ? '#c0392b' : 'var(--lux-line)'}`,
+                      fontSize: '1rem',
+                      color: 'var(--lux-ink)',
+                      background: '#fafafa',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              </>
+            )}
 
             {/* Inline error */}
             {error ? (
@@ -189,7 +309,9 @@ export default function LoginPage(): JSX.Element {
               className="lux-btn lux-btn--solid"
               style={{ width: '100%', cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1 }}
             >
-              {submitting ? t('auth.signingIn') : t('auth.signIn')}
+              {submitting
+                ? (isNewPasswordStep ? t('auth.settingPassword') : t('auth.signingIn'))
+                : (isNewPasswordStep ? t('auth.changePassword') : t('auth.signIn'))}
             </button>
           </form>
         </div>
