@@ -42,6 +42,18 @@ Resources:
     Properties:
       Name: !Sub "${Prefix}-api"
       ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - GET
+          - POST
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+        MaxAge: 300
 
   CognitoAuthorizer:
     Type: AWS::ApiGatewayV2::Authorizer
