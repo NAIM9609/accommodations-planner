@@ -2,6 +2,7 @@
   "nav": {
     "home": "Startseite",
     "reservations": "Reservierungen",
+    "help": "Hilfe",
     "skipToMain": "Zum Hauptinhalt springen"
   },
   "footer": {
@@ -126,5 +127,38 @@
   },
   "common": {
     "notice": "Hinweis:"
+  },
+  "ai": {
+    "chat": {
+      "openLabel": "Concierge-Chat öffnen",
+      "closeLabel": "Concierge-Chat schließen",
+      "panelLabel": "Concierge-Chat",
+      "messagesLabel": "Chat-Nachrichten",
+      "typingLabel": "Concierge tippt",
+      "title": "KI-Concierge",
+      "subtitle": "Fragen Sie alles über Ihren Aufenthalt",
+      "emptyHint": "Hallo! Wie kann ich Ihnen heute helfen?",
+      "inputPlaceholder": "Nachricht eingeben…",
+      "inputLabel": "Chat-Nachricht",
+      "sendLabel": "Nachricht senden",
+      "errorSend": "Ihre Nachricht konnte nicht gesendet werden. Bitte versuchen Sie es erneut."
+    },
+    "help": {
+      "pageTitle": "Hilfe & FAQ",
+      "metaDescription": "Erhalten Sie sofortige Antworten zu Zimmern, Verfügbarkeit, Preisen und Reservierungen.",
+      "kicker": "Intelligenter Assistent",
+      "subtitle": "Stellen Sie eine Frage und unsere KI durchsucht die Wissensdatenbank nach einer genauen Antwort.",
+      "questionLabel": "Ihre Frage",
+      "questionPlaceholder": "z. B. Wann ist der Check-in?",
+      "askButton": "Fragen",
+      "askingButton": "Suche läuft…",
+      "answerHeading": "Antwort",
+      "citationsHeading": "Quellen",
+      "sourceLabel": "Quelle {{index}}",
+      "locationLabel": "Ort:",
+      "unavailableTitle": "Wissensdatenbank noch nicht konfiguriert",
+      "unavailableDesc": "Der KI-gestützte FAQ wird gerade eingerichtet. Kontaktieren Sie in der Zwischenzeit direkt unser Concierge-Team.",
+      "errorAsk": "Es konnte keine Antwort abgerufen werden. Bitte versuchen Sie es erneut."
+    }
   }
 }

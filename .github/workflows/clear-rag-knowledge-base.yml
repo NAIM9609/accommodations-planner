@@ -1,0 +1,404 @@
+name: Clear RAG Knowledge Base
+
+# Empties the Bedrock Knowledge Base associated with an environment so that you
+# can start fresh with a clean vector store and no ingested documents.
+#
+# What this workflow does (in order):
+#   1. Resolves the Bedrock Knowledge Base ID from the CloudFormation stack
+#      parameter (or from the manual override input).
+#   2. Lists every data source attached to that Knowledge Base.
+#   3. For every S3 data source it finds, deletes ALL objects in the S3 bucket
+#      (the raw document store).
+#   4. Starts a Bedrock ingestion/sync job for each data source.  Because the
+#      bucket is now empty, Bedrock removes every indexed document from the
+#      vector store, leaving it completely clean.
+#   5. Polls until every ingestion job reaches a terminal state and reports the
+#      outcome.
+#   6. Optionally deletes the CloudWatch log *streams* (not log groups) for the
+#      two AI Lambda functions so historical invocation noise is gone too.
+#
+# Prerequisites
+#   • The AWS IAM principal behind AWS_ACCESS_KEY_ID must have:
+#       bedrock:ListDataSources, bedrock:GetDataSource
+#       bedrock:StartIngestionJob, bedrock:GetIngestionJob
+#       s3:ListBucket, s3:DeleteObject, s3:DeleteObjectVersion
+#       logs:DescribeLogStreams, logs:DeleteLogStream  (for the optional step)
+#   • The CloudFormation stack accommodations-planner-<env> must exist and have
+#     a non-empty KnowledgeBaseId parameter.  If the KB is not yet configured
+#     the workflow exits cleanly with a warning.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+      knowledge_base_id_override:
+        description: >
+          Bedrock Knowledge Base ID override.
+          Leave blank to read the value from the CloudFormation stack parameter.
+        required: false
+        type: string
+        default: ""
+      clear_logs:
+        description: >
+          Also delete CloudWatch log streams for the AI Lambda functions
+          (ai-chat and ai-rag).  Log groups themselves are kept so CloudFormation
+          does not drift.
+        required: false
+        type: boolean
+        default: false
+      confirm:
+        description: >
+          Type  CONFIRM  (all caps) to proceed.
+          Any other value aborts the run before any data is touched.
+        required: true
+        type: string
+
+concurrency:
+  group: clear-rag-${{ github.event.inputs.environment }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  clear-rag:
+    name: Clear RAG (${{ github.event.inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+
+    env:
+      APP_PREFIX: "accommodations-planner-${{ github.event.inputs.environment }}"
+      STACK_NAME: "accommodations-planner-${{ github.event.inputs.environment }}"
+
+    steps:
+      # ── 0. Safety guard ─────────────────────────────────────────────────
+      - name: Require explicit confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "CONFIRM" ]; then
+            echo "::error::Confirmation string is not 'CONFIRM'. Aborting to prevent accidental data loss."
+            exit 1
+          fi
+          echo "Confirmation accepted. Proceeding with RAG clear for environment: ${{ github.event.inputs.environment }}"
+
+      # ── 1. AWS credentials ───────────────────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.DEPLOY_AWS_REGION }}
+
+      # ── 2. Resolve Knowledge Base ID ─────────────────────────────────────
+      - name: Resolve Knowledge Base ID
+        id: resolve_kb
+        run: |
+          set -euo pipefail
+
+          KB_ID="${{ github.event.inputs.knowledge_base_id_override }}"
+
+          if [ -z "$KB_ID" ]; then
+            echo "No override supplied — reading KnowledgeBaseId from CloudFormation stack '${STACK_NAME}'…"
+            KB_ID=$(aws cloudformation describe-stacks \
+              --stack-name "${STACK_NAME}" \
+              --query "Stacks[0].Parameters[?ParameterKey=='KnowledgeBaseId'].ParameterValue" \
+              --output text 2>/dev/null || true)
+          fi
+
+          if [ -z "$KB_ID" ] || [ "$KB_ID" = "None" ]; then
+            echo "::warning::KnowledgeBaseId is not configured for this environment. Nothing to clear."
+            echo "kb_id=" >> "$GITHUB_OUTPUT"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Knowledge Base ID: ${KB_ID}"
+          echo "kb_id=${KB_ID}" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      # ── 3. List data sources ─────────────────────────────────────────────
+      - name: List Knowledge Base data sources
+        id: list_ds
+        if: steps.resolve_kb.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          KB_ID="${{ steps.resolve_kb.outputs.kb_id }}"
+
+          DS_IDS=$(aws bedrock-agent list-data-sources \
+            --knowledge-base-id "$KB_ID" \
+            --query "dataSourceSummaries[].dataSourceId" \
+            --output text)
+
+          if [ -z "$DS_IDS" ]; then
+            echo "::warning::No data sources found for Knowledge Base ${KB_ID}."
+            echo "ds_ids=" >> "$GITHUB_OUTPUT"
+          else
+            echo "Data source IDs: ${DS_IDS}"
+            # Space-separated list, newlines replaced with spaces
+            echo "ds_ids=${DS_IDS//$'\n'/ }" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── 4. Empty S3 data source buckets ─────────────────────────────────
+      - name: Empty S3 data source buckets
+        if: steps.resolve_kb.outputs.skip != 'true' && steps.list_ds.outputs.ds_ids != ''
+        run: |
+          set -euo pipefail
+          KB_ID="${{ steps.resolve_kb.outputs.kb_id }}"
+
+          for DS_ID in ${{ steps.list_ds.outputs.ds_ids }}; do
+            echo "── Inspecting data source: ${DS_ID}"
+
+            DS_TYPE=$(aws bedrock-agent get-data-source \
+              --knowledge-base-id "$KB_ID" \
+              --data-source-id "$DS_ID" \
+              --query "dataSource.dataSourceConfiguration.type" \
+              --output text)
+
+            if [ "$DS_TYPE" != "S3" ]; then
+              echo "  Data source type is '${DS_TYPE}' (not S3) — skipping bucket empty step."
+              continue
+            fi
+
+            BUCKET=$(aws bedrock-agent get-data-source \
+              --knowledge-base-id "$KB_ID" \
+              --data-source-id "$DS_ID" \
+              --query "dataSource.dataSourceConfiguration.s3Configuration.bucketArn" \
+              --output text | sed 's|arn:aws:s3:::||')
+
+            PREFIX=$(aws bedrock-agent get-data-source \
+              --knowledge-base-id "$KB_ID" \
+              --data-source-id "$DS_ID" \
+              --query "dataSource.dataSourceConfiguration.s3Configuration.inclusionPrefixes[0]" \
+              --output text 2>/dev/null || echo "")
+
+            if [ "$PREFIX" = "None" ] || [ "$PREFIX" = "null" ]; then
+              PREFIX=""
+            fi
+
+            if [ -n "$PREFIX" ]; then
+              TARGET="s3://${BUCKET}/${PREFIX}"
+            else
+              TARGET="s3://${BUCKET}"
+            fi
+
+            echo "  Emptying ${TARGET} …"
+
+            # Delete all current object versions (handles versioned buckets)
+            VERSIONING=$(aws s3api get-bucket-versioning \
+              --bucket "$BUCKET" \
+              --query "Status" --output text 2>/dev/null || echo "")
+
+            if [ "$VERSIONING" = "Enabled" ] || [ "$VERSIONING" = "Suspended" ]; then
+              echo "  Bucket has versioning — removing all versions and delete markers…"
+              aws s3api list-object-versions \
+                --bucket "$BUCKET" \
+                ${PREFIX:+--prefix "$PREFIX"} \
+                --query '{Objects: Versions[].{Key:Key,VersionId:VersionId}}' \
+                --output json | \
+              python3 -c "
+          import json, sys, subprocess
+          data = json.load(sys.stdin)
+          objects = data.get('Objects') or []
+          if not objects:
+              print('  No versioned objects to delete.')
+              sys.exit(0)
+          # Split into batches of 1000 (S3 delete-objects limit)
+          for i in range(0, len(objects), 1000):
+              batch = objects[i:i+1000]
+              payload = json.dumps({'Objects': batch, 'Quiet': True})
+              result = subprocess.run(
+                  ['aws', 's3api', 'delete-objects',
+                   '--bucket', '$BUCKET',
+                   '--delete', payload],
+                  capture_output=True, text=True)
+              print(result.stdout)
+              if result.returncode != 0:
+                  print(result.stderr, file=sys.stderr)
+                  sys.exit(result.returncode)
+          print(f'  Deleted {len(objects)} versions.')
+          "
+
+              # Also remove delete markers
+              aws s3api list-object-versions \
+                --bucket "$BUCKET" \
+                ${PREFIX:+--prefix "$PREFIX"} \
+                --query '{Objects: DeleteMarkers[].{Key:Key,VersionId:VersionId}}' \
+                --output json | \
+              python3 -c "
+          import json, sys, subprocess
+          data = json.load(sys.stdin)
+          objects = data.get('Objects') or []
+          if not objects:
+              sys.exit(0)
+          for i in range(0, len(objects), 1000):
+              batch = objects[i:i+1000]
+              payload = json.dumps({'Objects': batch, 'Quiet': True})
+              subprocess.run(
+                  ['aws', 's3api', 'delete-objects',
+                   '--bucket', '$BUCKET',
+                   '--delete', payload],
+                  check=True)
+          print(f'  Removed {len(objects)} delete markers.')
+          "
+            else
+              # Non-versioned bucket — simple recursive delete
+              aws s3 rm "$TARGET" --recursive
+            fi
+
+            echo "  ✓ Bucket emptied: ${TARGET}"
+          done
+
+      # ── 5. Trigger Bedrock ingestion sync ────────────────────────────────
+      # With no documents left in the source bucket, Bedrock will remove every
+      # entry from the vector store, leaving it completely clean.
+      - name: Trigger ingestion sync to flush vector store
+        id: trigger_sync
+        if: steps.resolve_kb.outputs.skip != 'true' && steps.list_ds.outputs.ds_ids != ''
+        run: |
+          set -euo pipefail
+          KB_ID="${{ steps.resolve_kb.outputs.kb_id }}"
+          JOB_IDS=""
+
+          for DS_ID in ${{ steps.list_ds.outputs.ds_ids }}; do
+            echo "Starting ingestion job for data source ${DS_ID}…"
+            JOB_ID=$(aws bedrock-agent start-ingestion-job \
+              --knowledge-base-id "$KB_ID" \
+              --data-source-id "$DS_ID" \
+              --query "ingestionJob.ingestionJobId" \
+              --output text)
+            echo "  Job ID: ${JOB_ID}"
+            JOB_IDS="${JOB_IDS}${DS_ID}:${JOB_ID} "
+          done
+
+          echo "job_ids=${JOB_IDS}" >> "$GITHUB_OUTPUT"
+
+      # ── 6. Wait for ingestion jobs to complete ───────────────────────────
+      - name: Wait for ingestion jobs to complete
+        if: steps.resolve_kb.outputs.skip != 'true' && steps.trigger_sync.outputs.job_ids != ''
+        run: |
+          set -euo pipefail
+          KB_ID="${{ steps.resolve_kb.outputs.kb_id }}"
+          FAILED=0
+
+          for ENTRY in ${{ steps.trigger_sync.outputs.job_ids }}; do
+            DS_ID="${ENTRY%%:*}"
+            JOB_ID="${ENTRY##*:}"
+            echo "── Waiting for ingestion job ${JOB_ID} (data source ${DS_ID})…"
+
+            DONE=0
+            for attempt in $(seq 1 60); do
+              STATUS=$(aws bedrock-agent get-ingestion-job \
+                --knowledge-base-id "$KB_ID" \
+                --data-source-id "$DS_ID" \
+                --ingestion-job-id "$JOB_ID" \
+                --query "ingestionJob.status" \
+                --output text)
+
+              echo "  Attempt ${attempt}: ${STATUS}"
+
+              case "$STATUS" in
+                COMPLETE)
+                  echo "  ✓ Ingestion job ${JOB_ID} completed successfully."
+                  DONE=1
+                  break
+                  ;;
+                FAILED|STOPPED)
+                  echo "::error::Ingestion job ${JOB_ID} ended with status: ${STATUS}"
+                  FAILED=1
+                  DONE=1
+                  break
+                  ;;
+                STARTING|IN_PROGRESS)
+                  sleep 10
+                  ;;
+                *)
+                  echo "  Unknown status '${STATUS}' — continuing to poll…"
+                  sleep 10
+                  ;;
+              esac
+            done
+
+            if [ "$DONE" -eq 0 ]; then
+              echo "::error::Timed out waiting for ingestion job ${JOB_ID} (last status: ${STATUS})."
+              FAILED=1
+            fi
+          done
+
+          if [ "$FAILED" -ne 0 ]; then
+            echo "::error::One or more ingestion jobs did not complete successfully."
+            exit 1
+          fi
+
+          echo "All ingestion jobs completed — vector store is now empty."
+
+      # ── 7. (Optional) Clear CloudWatch log streams ───────────────────────
+      - name: Clear AI Lambda CloudWatch log streams
+        if: >
+          github.event.inputs.clear_logs == 'true' &&
+          steps.resolve_kb.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+
+          for FN_SUFFIX in ai-chat ai-rag; do
+            LOG_GROUP="/aws/lambda/${APP_PREFIX}-${FN_SUFFIX}"
+            echo "── Clearing log streams in ${LOG_GROUP}…"
+
+            # List all stream names in pages
+            NEXT_TOKEN=""
+            STREAM_COUNT=0
+
+            while true; do
+              if [ -z "$NEXT_TOKEN" ]; then
+                RESPONSE=$(aws logs describe-log-streams \
+                  --log-group-name "$LOG_GROUP" \
+                  --query '{streams: logStreams[].logStreamName, next: nextToken}' \
+                  --output json 2>/dev/null || echo '{"streams":[],"next":""}')
+              else
+                RESPONSE=$(aws logs describe-log-streams \
+                  --log-group-name "$LOG_GROUP" \
+                  --next-token "$NEXT_TOKEN" \
+                  --query '{streams: logStreams[].logStreamName, next: nextToken}' \
+                  --output json 2>/dev/null || echo '{"streams":[],"next":""}')
+              fi
+
+              STREAMS=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print('\n'.join(d.get('streams') or []))")
+              NEXT_TOKEN=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('next') or '')")
+
+              while IFS= read -r STREAM; do
+                [ -z "$STREAM" ] && continue
+                aws logs delete-log-stream \
+                  --log-group-name "$LOG_GROUP" \
+                  --log-stream-name "$STREAM" 2>/dev/null || true
+                STREAM_COUNT=$((STREAM_COUNT + 1))
+              done <<< "$STREAMS"
+
+              [ -z "$NEXT_TOKEN" ] && break
+            done
+
+            echo "  ✓ Deleted ${STREAM_COUNT} log stream(s) from ${LOG_GROUP}."
+          done
+
+      # ── 8. Summary ───────────────────────────────────────────────────────
+      - name: Print summary
+        if: always()
+        run: |
+          echo "================================================"
+          echo "  RAG Clear Summary"
+          echo "================================================"
+          echo "  Environment  : ${{ github.event.inputs.environment }}"
+          echo "  KB ID        : ${{ steps.resolve_kb.outputs.kb_id || 'n/a (not configured)' }}"
+          echo "  Data sources : ${{ steps.list_ds.outputs.ds_ids || 'none' }}"
+          echo "  Logs cleared : ${{ github.event.inputs.clear_logs }}"
+          echo "================================================"
+          if [ "${{ steps.resolve_kb.outputs.skip }}" = "true" ]; then
+            echo "  RESULT: Skipped — KnowledgeBaseId is not set in this environment."
+          else
+            echo "  RESULT: Knowledge Base vector store has been flushed."
+            echo "          You can now ingest fresh documents and start clean."
+          fi
+          echo "================================================"

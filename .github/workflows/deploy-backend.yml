@@ -68,7 +68,7 @@ jobs:
       - name: Verify Lambda functions exist
         run: |
           set -euo pipefail
-          for fn in "${{ inputs.prefix }}-health" "${{ inputs.prefix }}-reservations"; do
+          for fn in "${{ inputs.prefix }}-health" "${{ inputs.prefix }}-reservations" "${{ inputs.prefix }}-ai-chat" "${{ inputs.prefix }}-ai-rag"; do
             if ! aws lambda get-function --function-name "$fn" > /dev/null 2>&1; then
               ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
               echo "Lambda function '$fn' was not found in account $ACCOUNT_ID, region ${{ secrets.DEPLOY_AWS_REGION }}."
@@ -100,7 +100,7 @@ jobs:
 
           cd dist && zip -r ../lambda.zip . && cd ..
 
-          for fn in "${{ inputs.prefix }}-health" "${{ inputs.prefix }}-reservations"; do
+          for fn in "${{ inputs.prefix }}-health" "${{ inputs.prefix }}-reservations" "${{ inputs.prefix }}-ai-chat" "${{ inputs.prefix }}-ai-rag"; do
             echo "=== Deploying $fn ==="
 
             wait_for_lambda_ready "$fn"
