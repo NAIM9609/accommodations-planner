@@ -298,30 +298,6 @@ jobs:
             check_output "CognitoUserPoolClientId"
           fi
 
-      - name: Attach Amplify URL to Lambda CORS origins
-        if: ${{ inputs.enable_amplify == true && inputs.enable_lambda == true }}
-        run: |
-          set -euo pipefail
-          FRONTEND_URL="$(aws cloudformation describe-stacks \
-            --stack-name "${STACK_NAME}" \
-            --query "Stacks[0].Outputs[?OutputKey=='FrontendUrl'].OutputValue" \
-            --output text 2>/dev/null || true)"
-          if [ -z "$FRONTEND_URL" ] || [ "$FRONTEND_URL" = "None" ]; then
-            echo "FrontendUrl not found in stack outputs — skipping CORS auto-attach."
-            exit 0
-          fi
-          echo "Auto-attaching Amplify URL to Lambda CORS: $FRONTEND_URL"
-          aws cloudformation deploy \
-            --template-file root-stack.yaml \
-            --stack-name "${STACK_NAME}" \
-            --parameter-overrides ${{ steps.stack_params.outputs.overrides }} "CorsAllowedOrigins=${FRONTEND_URL}" \
-            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
-            --no-fail-on-empty-changeset \
-            --tags \
-              Project=accommodations-planner \
-              Environment=${{ inputs.environment }} \
-              ManagedBy=cloudformation
-
       - name: Sync Amplify environment variables from stack outputs
         if: ${{ inputs.enable_amplify == true }}
         run: |
