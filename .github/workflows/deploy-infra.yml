@@ -321,3 +321,63 @@ jobs:
               Project=accommodations-planner \
               Environment=${{ inputs.environment }} \
               ManagedBy=cloudformation
+
+      - name: Sync Amplify environment variables from stack outputs
+        if: ${{ inputs.enable_amplify == true }}
+        run: |
+          set -euo pipefail
+
+          OUTPUTS=$(aws cloudformation describe-stacks \
+            --stack-name "${STACK_NAME}" \
+            --query "Stacks[0].Outputs" \
+            --output json 2>/dev/null || echo '[]')
+
+          get_output() {
+            echo "$OUTPUTS" | jq -r --arg key "$1" '.[] | select(.OutputKey == $key) | .OutputValue // empty'
+          }
+
+          APP_ID=$(get_output "AmplifyAppId")
+          if [ -z "$APP_ID" ]; then
+            echo "AmplifyAppId not found in stack outputs — skipping env var sync."
+            exit 0
+          fi
+
+          API_URL=$(get_output "ApiUrl")
+          USER_POOL_ID=$(get_output "CognitoUserPoolId")
+          CLIENT_ID=$(get_output "CognitoUserPoolClientId")
+
+          if [ -z "$API_URL" ] || [ -z "$USER_POOL_ID" ] || [ -z "$CLIENT_ID" ]; then
+            echo "One or more required stack outputs are missing — skipping env var sync."
+            echo "  ApiUrl=${API_URL:-<missing>}"
+            echo "  CognitoUserPoolId=${USER_POOL_ID:-<missing>}"
+            echo "  CognitoUserPoolClientId=${CLIENT_ID:-<missing>}"
+            exit 0
+          fi
+
+          # Merge into existing Amplify env vars (preserves any manually set vars,
+          # removes the old NEXT_PUBLIC_API_BASE_URL if present)
+          CURRENT_ENV=$(aws amplify get-app --app-id "$APP_ID" \
+            --query "app.environmentVariables" --output json 2>/dev/null || echo '{}')
+
+          aws amplify update-app \
+            --cli-input-json "$(jq -n \
+              --arg app_id "$APP_ID" \
+              --arg api_url "$API_URL" \
+              --arg pool_id "$USER_POOL_ID" \
+              --arg client_id "$CLIENT_ID" \
+              --argjson current "$CURRENT_ENV" \
+              '{
+                appId: $app_id,
+                environmentVariables: (
+                  $current
+                  | del(.NEXT_PUBLIC_API_BASE_URL)
+                  | .BACKEND_API_URL = $api_url
+                  | .NEXT_PUBLIC_COGNITO_USER_POOL_ID = $pool_id
+                  | .NEXT_PUBLIC_COGNITO_CLIENT_ID = $client_id
+                )
+              }')"
+
+          echo "Amplify environment variables synced:"
+          echo "  BACKEND_API_URL=$API_URL"
+          echo "  NEXT_PUBLIC_COGNITO_USER_POOL_ID=$USER_POOL_ID"
+          echo "  NEXT_PUBLIC_COGNITO_CLIENT_ID=$CLIENT_ID"

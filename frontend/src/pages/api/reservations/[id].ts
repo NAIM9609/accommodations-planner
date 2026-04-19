@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { handleProxyError, JSON_HEADERS, requireBackendUrl } from '../../../lib/backendProxy';
+import { forwardAuthHeader, handleProxyError, JSON_HEADERS, requireBackendUrl } from '../../../lib/backendProxy';
 
 export default async function handler(
   req: NextApiRequest,
@@ -11,6 +11,7 @@ export default async function handler(
   if (!backendUrl) return;
 
   const { id } = req.query;
+  const authHeader = forwardAuthHeader(req);
 
   try {
     if (req.method === 'DELETE') {
@@ -21,7 +22,7 @@ export default async function handler(
       // DELETE /api/reservations/[id] - delete a specific reservation
       const response = await fetch(`${backendUrl}/reservations/${id}`, {
         method: 'DELETE',
-        headers: JSON_HEADERS,
+        headers: { ...JSON_HEADERS, ...authHeader },
       });
 
       if (!response.ok) {

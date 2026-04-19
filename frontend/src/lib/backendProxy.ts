@@ -1,8 +1,13 @@
-import type { NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from 'next';
 
 export const JSON_HEADERS = {
   'Content-Type': 'application/json',
 } as const;
+
+export function forwardAuthHeader(req: NextApiRequest): Record<string, string> {
+  const auth = req.headers['authorization'];
+  return auth ? { Authorization: auth } : {};
+}
 
 export function requireBackendUrl(
   res: NextApiResponse,

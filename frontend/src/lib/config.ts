@@ -4,9 +4,10 @@
  */
 
 export const getApiBaseUrl = (): string => {
-  // In production, call the API Gateway directly via NEXT_PUBLIC_API_BASE_URL.
-  // In local development, fall back to the Next.js dev-server API proxy.
-  return process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
+  // Always route through the Next.js API proxy so requests are server-side
+  // and CORS is never a concern. Set BACKEND_API_URL (server-side only) to
+  // the API Gateway URL in your hosting environment (e.g. Amplify env vars).
+  return '/api';
 };
 
 export const getCognitoUserPoolId = (): string => {

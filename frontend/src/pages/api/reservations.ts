@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { handleProxyError, JSON_HEADERS, requireBackendUrl } from '../../lib/backendProxy';
+import { forwardAuthHeader, handleProxyError, JSON_HEADERS, requireBackendUrl } from '../../lib/backendProxy';
 
 export default async function handler(
   req: NextApiRequest,
@@ -10,12 +10,14 @@ export default async function handler(
   });
   if (!backendUrl) return;
 
+  const authHeader = forwardAuthHeader(req);
+
   try {
     if (req.method === 'GET') {
       // GET /api/reservations - fetch all reservations
       const response = await fetch(`${backendUrl}/reservations`, {
         method: 'GET',
-        headers: JSON_HEADERS,
+        headers: { ...JSON_HEADERS, ...authHeader },
       });
 
       if (!response.ok) {
@@ -30,7 +32,7 @@ export default async function handler(
       // POST /api/reservations - create a reservation
       const response = await fetch(`${backendUrl}/reservations`, {
         method: 'POST',
-        headers: JSON_HEADERS,
+        headers: { ...JSON_HEADERS, ...authHeader },
         body: JSON.stringify(req.body),
       });
 
