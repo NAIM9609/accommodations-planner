@@ -3,6 +3,11 @@ name: Deploy Dev Infra
 on:
   workflow_dispatch:
     inputs:
+      github_branch:
+        description: GitHub branch to build from
+        required: true
+        type: string
+        default: master
       deploy_dynamodb:
         description: Deploy DynamoDB stack
         required: false
@@ -63,6 +68,7 @@ jobs:
     uses: ./.github/workflows/deploy-infra.yml
     with:
       environment: dev
+      github_branch: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.github_branch || github.ref_name }}
       # Cleanup runs if enabled (default true)
       cleanup_orphaned_resources: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.cleanup_orphaned_resources == 'true' }}
       # Remove orphaned DynamoDB only if cleanup is enabled, DynamoDB is NOT being deployed, and explicit permission is given

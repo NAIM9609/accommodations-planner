@@ -12,6 +12,18 @@ export interface NewPasswordRequiredChallenge {
   userAttributes: Record<string, string>;
 }
 
+function sanitizeChallengeAttributes(
+  attributes: Record<string, string>,
+): Record<string, string> {
+  const sanitized = { ...attributes };
+
+  // Cognito rejects immutable verification flags in RespondToAuthChallenge.
+  delete sanitized.email_verified;
+  delete sanitized.phone_number_verified;
+
+  return sanitized;
+}
+
 function getUserPool(): CognitoUserPool {
   return new CognitoUserPool({
     UserPoolId: getCognitoUserPoolId(),
@@ -34,7 +46,7 @@ export function signIn(
         resolve({
           challengeName: 'NEW_PASSWORD_REQUIRED',
           user,
-          userAttributes: attributes as Record<string, string>,
+          userAttributes: sanitizeChallengeAttributes(attributes as Record<string, string>),
         }),
     });
   });
@@ -46,7 +58,7 @@ export function completeNewPasswordChallenge(
   userAttributes: Record<string, string>,
 ): Promise<CognitoUserSession> {
   return new Promise((resolve, reject) => {
-    user.completeNewPasswordChallenge(newPassword, userAttributes, {
+    user.completeNewPasswordChallenge(newPassword, sanitizeChallengeAttributes(userAttributes), {
       onSuccess: resolve,
       onFailure: reject,
     });

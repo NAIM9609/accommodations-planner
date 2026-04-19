@@ -1,4 +1,3 @@
 [
-  {"ParameterKey": "Environment", "ParameterValue": "dev"},
-  {"ParameterKey": "GithubBranch", "ParameterValue": "master"}
+  {"ParameterKey": "Environment", "ParameterValue": "dev"}
 ]

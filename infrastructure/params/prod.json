@@ -1,6 +1,5 @@
 [
   {"ParameterKey": "Environment", "ParameterValue": "prod"},
-  {"ParameterKey": "GithubBranch", "ParameterValue": "master"},
   {"ParameterKey": "LambdaReservedConcurrency", "ParameterValue": "1"},
   {"ParameterKey": "CloudwatchLogRetentionDays", "ParameterValue": "1"},
   {"ParameterKey": "ApiThrottleRateLimit", "ParameterValue": "2"},

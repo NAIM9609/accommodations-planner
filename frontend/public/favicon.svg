@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Accommodations Planner">
+  <rect width="64" height="64" rx="12" fill="#1f3b35"/>
+  <path d="M12 34L32 16L52 34V50H38V38H26V50H12V34Z" fill="#f6f2e8"/>
+  <circle cx="48" cy="20" r="5" fill="#b39052"/>
+</svg>

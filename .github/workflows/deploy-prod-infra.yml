@@ -6,6 +6,11 @@ on:
       confirm:
         description: 'Type "deploy-prod" to confirm production deployment'
         required: true
+      github_branch:
+        description: GitHub branch to build from
+        required: true
+        type: string
+        default: master
       deploy_dynamodb:
         description: Deploy DynamoDB stack
         required: false
@@ -72,6 +77,7 @@ jobs:
     uses: ./.github/workflows/deploy-infra.yml
     with:
       environment: prod
+      github_branch: ${{ github.event.inputs.github_branch }}
       params_file: params/prod.json
       # Cleanup runs if enabled (default true)
       cleanup_orphaned_resources: ${{ github.event.inputs.cleanup_orphaned_resources == 'true' }}

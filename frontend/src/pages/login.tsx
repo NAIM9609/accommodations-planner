@@ -30,6 +30,7 @@ export default function LoginPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const isNewPasswordStep = challengeState.type === 'NEW_PASSWORD_REQUIRED';
+  const challengeUsername = email || challengeState.userAttributes?.email || '';
 
   // If already authenticated, redirect immediately
   useEffect(() => {
@@ -133,6 +134,25 @@ export default function LoginPage(): JSX.Element {
           <form onSubmit={isNewPasswordStep ? handleNewPasswordSubmit : handleInitialSubmit} noValidate>
             {isNewPasswordStep ? (
               <>
+                <input
+                  type="email"
+                  name="username"
+                  autoComplete="username"
+                  value={challengeUsername}
+                  readOnly
+                  tabIndex={-1}
+                  style={{
+                    position: 'absolute',
+                    width: '1px',
+                    height: '1px',
+                    padding: 0,
+                    margin: '-1px',
+                    overflow: 'hidden',
+                    clip: 'rect(0, 0, 0, 0)',
+                    border: 0,
+                  }}
+                />
+
                 <p
                   style={{
                     margin: '0 0 16px',

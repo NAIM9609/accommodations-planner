@@ -12,6 +12,10 @@ on:
         required: false
         type: string
         default: ''
+      github_branch:
+        description: GitHub branch to build from
+        required: true
+        type: string
       cleanup_orphaned_resources:
         description: Run automatic orphaned resource cleanup before deploy
         required: false
@@ -164,6 +168,7 @@ jobs:
         run: |
           set -euo pipefail
           OVERRIDES="Environment=${{ inputs.environment }}"
+          OVERRIDES="${OVERRIDES} GithubBranch=${{ inputs.github_branch }}"
           OVERRIDES="${OVERRIDES} AmplifyGithubToken=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
           OVERRIDES="${OVERRIDES} TemplatesBucketName=${TEMPLATES_BUCKET}"
           OVERRIDES="${OVERRIDES} PlaceholderBucket=${TEMPLATES_BUCKET}"
