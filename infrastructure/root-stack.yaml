@@ -70,6 +70,10 @@ Parameters:
     Type: String
     Default: placeholders/layer-placeholder.zip
     Description: S3 key for the placeholder Lambda layer zip
+  CorsAllowedOrigins:
+    Type: String
+    Default: ""
+    Description: Comma-separated additional CORS origins for Lambda (auto-populated with Amplify URL by the deploy workflow)
 
   # ── Stack selector flags ──────────────────────────────────────────────────
   EnableDynamoDB:
@@ -172,6 +176,7 @@ Resources:
         PlaceholderBucket: !Ref PlaceholderBucket
         PlaceholderKey: !Ref PlaceholderKey
         PlaceholderLayerKey: !Ref PlaceholderLayerKey
+        CorsAllowedOrigins: !Ref CorsAllowedOrigins
       Tags:
         - Key: Project
           Value: !Ref AppName

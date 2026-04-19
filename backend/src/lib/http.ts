@@ -9,7 +9,7 @@ function escapeRegex(value: string): string {
 
 function buildAllowedOriginPatterns(): RegExp[] {
   const branch = (process.env.AMPLIFY_BRANCH ?? '').trim();
-  const amplifyAppPattern = /^https:\/\/[a-z0-9-]+\.[a-z0-9]+\.amplifyapp\.com$/i;
+  const amplifyAppPattern = /^https:\/\/[a-z0-9-]+\.[a-z0-9-]+\.amplifyapp\.com$/i;
   const branchPattern = branch
     ? new RegExp(`^https://${escapeRegex(branch)}\\.[a-z0-9]+\\.amplifyapp\\.com$`, 'i')
     : null;
