@@ -1,6 +1,6 @@
 import { APIGatewayProxyResult } from 'aws-lambda';
 
-const CORS_ALLOWED_HEADERS = 'Content-Type';
+const CORS_ALLOWED_HEADERS = 'Content-Type,Authorization';
 const CORS_ALLOWED_METHODS = 'OPTIONS,GET,POST,PUT,PATCH,DELETE';
 
 function escapeRegex(value: string): string {
