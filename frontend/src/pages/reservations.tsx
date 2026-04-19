@@ -1,5 +1,5 @@
 import Head from 'next/head';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Layout from '../components/Layout';
 import ReservationForm from '../components/ReservationForm';
@@ -8,6 +8,7 @@ import PageSectionHeader from '../components/ui/PageSectionHeader';
 import { Notice, StatusPanel } from '../components/ui/StatusPanel';
 import { getReservations, createReservation, deleteReservation, type Reservation, type CreateReservationInput } from '../lib/apiClient';
 import { BRAND } from '../lib/brand';
+import withAdminAuth from '../components/auth/withAdminAuth';
 
 function ReservationsPage(): JSX.Element {
   const { t } = useTranslation();
@@ -17,7 +18,7 @@ function ReservationsPage(): JSX.Element {
   const [creating, setCreating] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
-  const fetchReservations = async () => {
+  const fetchReservations = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -28,11 +29,11 @@ function ReservationsPage(): JSX.Element {
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     fetchReservations();
-  }, []);
+  }, [fetchReservations]);
 
   const handleCreate = async (input: CreateReservationInput) => {
     setCreating(true);
@@ -115,4 +116,4 @@ function ReservationsPage(): JSX.Element {
   );
 }
 
-export default ReservationsPage;
+export default withAdminAuth(ReservationsPage);

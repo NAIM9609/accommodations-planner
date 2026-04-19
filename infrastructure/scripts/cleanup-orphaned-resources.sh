@@ -7,13 +7,14 @@
 #   STACK_NAME  — CloudFormation stack name
 #
 # Optional env vars:
-#   CLEANUP_DYNAMO — set to "true" to also delete the DynamoDB table (DATA LOSS)
+#   REMOVE_ORPHANED_DYNAMODB — set to "true" to also delete the DynamoDB table (DATA LOSS)
+#   CLEANUP_DYNAMO            — legacy alias for backward compatibility
 
 set -euo pipefail
 
 : "${PREFIX:?PREFIX is required}"
 : "${STACK_NAME:?STACK_NAME is required}"
-CLEANUP_DYNAMO="${CLEANUP_DYNAMO:-false}"
+REMOVE_ORPHANED_DYNAMODB="${REMOVE_ORPHANED_DYNAMODB:-${CLEANUP_DYNAMO:-false}}"
 
 DELETED=0
 SKIPPED=0
@@ -138,13 +139,13 @@ delete_dynamodb_table() {
     (( NOT_FOUND++ )) || true
     return
   fi
-  if [ "$CLEANUP_DYNAMO" != "true" ]; then
+  if [ "$REMOVE_ORPHANED_DYNAMODB" != "true" ]; then
     warn "DynamoDB table '$table_name' exists as an orphan but was SKIPPED (data loss risk)."
-    warn "Re-run with force_cleanup_dynamo=true to delete it."
+    warn "Re-run with remove_orphaned_dynamodb=true to delete it."
     (( SKIPPED++ )) || true
     return
   fi
-  warn "Deleting DynamoDB table: $table_name (force_cleanup_dynamo=true)"
+  warn "Deleting DynamoDB table: $table_name (remove_orphaned_dynamodb=true)"
   aws dynamodb delete-table --table-name "$table_name"
   aws dynamodb wait table-not-exists --table-name "$table_name"
   log "  deleted."

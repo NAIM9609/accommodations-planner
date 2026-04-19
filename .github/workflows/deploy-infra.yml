@@ -12,13 +12,17 @@ on:
         required: false
         type: string
         default: ''
-      skip_cleanup:
-        description: Skip automatic orphaned resource cleanup
+      github_branch:
+        description: GitHub branch to build from
+        required: true
+        type: string
+      cleanup_orphaned_resources:
+        description: Run automatic orphaned resource cleanup before deploy
         required: false
         type: boolean
-        default: false
-      force_cleanup_dynamo:
-        description: Also delete orphaned DynamoDB table (DATA LOSS risk)
+        default: true
+      remove_orphaned_dynamodb:
+        description: Also delete orphaned DynamoDB table during cleanup (DATA LOSS risk)
         required: false
         type: boolean
         default: false
@@ -44,6 +48,11 @@ on:
         default: true
       enable_iam:
         description: Deploy the IAM stack
+        required: false
+        type: boolean
+        default: true
+      enable_cognito:
+        description: Deploy the Cognito stack
         required: false
         type: boolean
         default: true
@@ -159,6 +168,7 @@ jobs:
         run: |
           set -euo pipefail
           OVERRIDES="Environment=${{ inputs.environment }}"
+          OVERRIDES="${OVERRIDES} GithubBranch=${{ inputs.github_branch }}"
           OVERRIDES="${OVERRIDES} AmplifyGithubToken=${{ secrets.AMPLIFY_GITHUB_TOKEN }}"
           OVERRIDES="${OVERRIDES} TemplatesBucketName=${TEMPLATES_BUCKET}"
           OVERRIDES="${OVERRIDES} PlaceholderBucket=${TEMPLATES_BUCKET}"
@@ -176,7 +186,7 @@ jobs:
 
           echo "overrides=${OVERRIDES}" >> "$GITHUB_OUTPUT"
 
-      - name: Append stack selector overrides
+      - name: Append service toggle overrides
         id: stack_params
         run: |
           set -euo pipefail
@@ -186,7 +196,22 @@ jobs:
           OVERRIDES="${OVERRIDES} EnableApiGateway=${{ inputs.enable_api_gateway }}"
           OVERRIDES="${OVERRIDES} EnableAmplify=${{ inputs.enable_amplify }}"
           OVERRIDES="${OVERRIDES} EnableIam=${{ inputs.enable_iam }}"
+          OVERRIDES="${OVERRIDES} EnableCognito=${{ inputs.enable_cognito }}"
           echo "overrides=${OVERRIDES}" >> "$GITHUB_OUTPUT"
+
+      - name: Preflight deployment flags
+        run: |
+          set -euo pipefail
+          echo "=== Effective Deployment Flags ==="
+          echo "environment=${{ inputs.environment }}"
+          echo "cleanup_orphaned_resources=${{ inputs.cleanup_orphaned_resources }}"
+          echo "remove_orphaned_dynamodb=${{ inputs.remove_orphaned_dynamodb }}"
+          echo "enable_dynamodb=${{ inputs.enable_dynamodb }}"
+          echo "enable_lambda=${{ inputs.enable_lambda }}"
+          echo "enable_api_gateway=${{ inputs.enable_api_gateway }}"
+          echo "enable_amplify=${{ inputs.enable_amplify }}"
+          echo "enable_iam=${{ inputs.enable_iam }}"
+          echo "enable_cognito=${{ inputs.enable_cognito }}"
 
       - name: Clean up failed stack if in ROLLBACK_COMPLETE
         run: |
@@ -203,12 +228,12 @@ jobs:
           fi
 
       - name: Clean up orphaned resources from failed deploys
-        if: ${{ inputs.skip_cleanup != true }}
+        if: ${{ inputs.cleanup_orphaned_resources == true }}
         run: |
           set -euo pipefail
           export PREFIX="${STACK_NAME}"
           export STACK_NAME
-          export CLEANUP_DYNAMO="${{ inputs.force_cleanup_dynamo }}"
+          export REMOVE_ORPHANED_DYNAMODB="${{ inputs.remove_orphaned_dynamodb }}"
           chmod +x scripts/cleanup-orphaned-resources.sh
           bash scripts/cleanup-orphaned-resources.sh
 
@@ -267,4 +292,8 @@ jobs:
           fi
           if [ "${{ inputs.enable_dynamodb }}" = "true" ]; then
             check_output "DynamoDBTableName"
+          fi
+          if [ "${{ inputs.enable_cognito }}" = "true" ]; then
+            check_output "CognitoUserPoolId"
+            check_output "CognitoUserPoolClientId"
           fi

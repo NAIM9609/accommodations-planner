@@ -9,6 +9,7 @@
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
   },
   "dependencies": {
+    "amazon-cognito-identity-js": "^6.3.16",
     "caniuse-lite": "1.0.30001699",
     "i18next": "^26.0.5",
     "i18next-browser-languagedetector": "^8.2.1",

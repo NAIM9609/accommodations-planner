@@ -2,11 +2,6 @@ name: Deploy Dev Frontend
 
 on:
   workflow_dispatch:
-  push:
-    branches: [master]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/deploy-dev-frontend.yml'
 
 concurrency:
   group: deploy-dev-frontend

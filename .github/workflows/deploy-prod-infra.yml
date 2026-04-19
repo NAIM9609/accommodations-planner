@@ -6,24 +6,48 @@ on:
       confirm:
         description: 'Type "deploy-prod" to confirm production deployment'
         required: true
-      stacks:
-        description: "Which stacks to deploy (disabling a stack DELETES it)"
-        required: false
-        type: choice
-        default: all
-        options:
-          - all
-          - core
-          - no-amplify
-          - no-iam
-          - iam-only
-      skip_cleanup:
-        description: Skip automatic orphaned resource cleanup
+      github_branch:
+        description: GitHub branch to build from
+        required: true
+        type: string
+        default: master
+      deploy_dynamodb:
+        description: Deploy DynamoDB stack
         required: false
         type: boolean
-        default: false
-      force_cleanup_dynamo:
-        description: Also delete orphaned DynamoDB table (DATA LOSS)
+        default: true
+      deploy_lambda:
+        description: Deploy Lambda stack
+        required: false
+        type: boolean
+        default: true
+      deploy_api_gateway:
+        description: Deploy API Gateway stack
+        required: false
+        type: boolean
+        default: true
+      deploy_amplify:
+        description: Deploy Amplify stack
+        required: false
+        type: boolean
+        default: true
+      deploy_iam:
+        description: Deploy IAM stack
+        required: false
+        type: boolean
+        default: true
+      deploy_cognito:
+        description: Deploy Cognito stack
+        required: false
+        type: boolean
+        default: true
+      cleanup_orphaned_resources:
+        description: Run orphaned resource cleanup before deploy
+        required: false
+        type: boolean
+        default: true
+      remove_orphaned_dynamodb:
+        description: Allow cleanup to delete orphaned DynamoDB table when DynamoDB deploy is disabled (DATA LOSS)
         required: false
         type: boolean
         default: false
@@ -53,14 +77,19 @@ jobs:
     uses: ./.github/workflows/deploy-infra.yml
     with:
       environment: prod
+      github_branch: ${{ github.event.inputs.github_branch }}
       params_file: params/prod.json
-      skip_cleanup: ${{ github.event.inputs.skip_cleanup == 'true' }}
-      force_cleanup_dynamo: ${{ github.event.inputs.force_cleanup_dynamo == 'true' }}
-      enable_dynamodb: ${{ github.event.inputs.stacks != 'iam-only' }}
-      enable_lambda: ${{ github.event.inputs.stacks != 'iam-only' }}
-      enable_api_gateway: ${{ github.event.inputs.stacks != 'iam-only' }}
-      enable_amplify: ${{ github.event.inputs.stacks == 'all' || github.event.inputs.stacks == '' || github.event.inputs.stacks == 'no-iam' }}
-      enable_iam: ${{ github.event.inputs.stacks != 'core' && github.event.inputs.stacks != 'no-iam' }}
+      # Cleanup runs if enabled (default true)
+      cleanup_orphaned_resources: ${{ github.event.inputs.cleanup_orphaned_resources == 'true' }}
+      # Remove orphaned DynamoDB only if cleanup is enabled, DynamoDB is NOT being deployed, and explicit permission is given
+      remove_orphaned_dynamodb: ${{ github.event.inputs.cleanup_orphaned_resources == 'true' && github.event.inputs.deploy_dynamodb != 'true' && github.event.inputs.remove_orphaned_dynamodb == 'true' }}
+      # Service toggles: true means deploy, false means skip
+      enable_dynamodb: ${{ github.event.inputs.deploy_dynamodb == 'true' }}
+      enable_lambda: ${{ github.event.inputs.deploy_lambda == 'true' }}
+      enable_api_gateway: ${{ github.event.inputs.deploy_api_gateway == 'true' }}
+      enable_amplify: ${{ github.event.inputs.deploy_amplify == 'true' }}
+      enable_iam: ${{ github.event.inputs.deploy_iam == 'true' }}
+      enable_cognito: ${{ github.event.inputs.deploy_cognito == 'true' }}
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

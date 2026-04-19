@@ -29,6 +29,12 @@ Parameters:
     Type: Number
     Default: 10
     Description: Burst limit
+  CognitoUserPoolArn:
+    Type: String
+    Description: ARN of the Cognito User Pool used for JWT authorisation
+  CognitoUserPoolClientId:
+    Type: String
+    Description: Cognito User Pool App Client ID used as the JWT audience
 
 Resources:
   HttpApi:
@@ -36,6 +42,23 @@ Resources:
     Properties:
       Name: !Sub "${Prefix}-api"
       ProtocolType: HTTP
+
+  CognitoAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId: !Ref HttpApi
+      AuthorizerType: JWT
+      Name: !Sub "${Prefix}-cognito-jwt"
+      IdentitySource:
+        - "$request.header.Authorization"
+      JwtConfiguration:
+        # Issuer is https://cognito-idp.<region>.amazonaws.com/<userPoolId>
+        Issuer: !Sub
+          - "https://cognito-idp.${Region}.amazonaws.com/${PoolId}"
+          - Region: !Select [3, !Split [":", !Ref CognitoUserPoolArn]]
+            PoolId: !Select [1, !Split ["/", !Select [5, !Split [":", !Ref CognitoUserPoolArn]]]]
+        Audience:
+          - !Ref CognitoUserPoolClientId
 
   HealthIntegration:
     Type: AWS::ApiGatewayV2::Integration
@@ -55,7 +78,7 @@ Resources:
       PayloadFormatVersion: "1.0"
       IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ReservationsLambdaArn}/invocations"
 
-  # Health routes
+  # Health routes — public (no auth)
   HealthGetRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
@@ -70,12 +93,14 @@ Resources:
       RouteKey: OPTIONS /health
       Target: !Sub "integrations/${HealthIntegration}"
 
-  # Reservations collection routes
+  # Reservations collection routes — OPTIONS public, others JWT-protected
   ReservationsGetRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
       ApiId: !Ref HttpApi
       RouteKey: GET /reservations
+      AuthorizationType: JWT
+      AuthorizerId: !Ref CognitoAuthorizer
       Target: !Sub "integrations/${ReservationsIntegration}"
 
   ReservationsPostRoute:
@@ -83,6 +108,8 @@ Resources:
     Properties:
       ApiId: !Ref HttpApi
       RouteKey: POST /reservations
+      AuthorizationType: JWT
+      AuthorizerId: !Ref CognitoAuthorizer
       Target: !Sub "integrations/${ReservationsIntegration}"
 
   ReservationsOptionsRoute:
@@ -92,12 +119,14 @@ Resources:
       RouteKey: OPTIONS /reservations
       Target: !Sub "integrations/${ReservationsIntegration}"
 
-  # Reservations individual routes
+  # Reservations individual routes — OPTIONS public, others JWT-protected
   ReservationIdGetRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
       ApiId: !Ref HttpApi
       RouteKey: "GET /reservations/{id}"
+      AuthorizationType: JWT
+      AuthorizerId: !Ref CognitoAuthorizer
       Target: !Sub "integrations/${ReservationsIntegration}"
 
   ReservationIdDeleteRoute:
@@ -105,6 +134,8 @@ Resources:
     Properties:
       ApiId: !Ref HttpApi
       RouteKey: "DELETE /reservations/{id}"
+      AuthorizationType: JWT
+      AuthorizerId: !Ref CognitoAuthorizer
       Target: !Sub "integrations/${ReservationsIntegration}"
 
   ReservationIdOptionsRoute:

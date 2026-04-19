@@ -4,8 +4,8 @@ A production-ready monorepo for a Bed & Breakfast accommodations planner built w
 - **Frontend**: Next.js 15 (TypeScript, hosted on AWS Amplify)
 - **Backend**: AWS Lambda (Node.js 20, TypeScript) + API Gateway REST API
 - **Database**: DynamoDB (on-demand billing)
-- **IaC**: Terraform 1.7+ (modular)
-- **CI/CD**: GitHub Actions with AWS OIDC (no long-lived credentials)
+- **IaC**: AWS CloudFormation (root + nested stacks)
+- **CI/CD**: GitHub Actions reusable deployment workflows
 
 ---
 
@@ -15,7 +15,7 @@ A production-ready monorepo for a Bed & Breakfast accommodations planner built w
 accommodations-planner/
 ├── frontend/          # Next.js 15 app (Haddar Etna Luxury B&B UI)
 ├── backend/           # Lambda handlers (TypeScript)
-├── infrastructure/    # Terraform modules (DynamoDB, Lambda, API GW, Amplify)
+├── infrastructure/    # CloudFormation templates, params, cleanup scripts
 └── .github/workflows/ # CI, deploy-dev, deploy-prod pipelines
 ```
 
@@ -27,33 +27,30 @@ accommodations-planner/
 |------|---------|
 | Node.js | 20.x |
 | npm | 10.x (bundled with Node 20) |
-| Terraform | >= 1.7 |
 | AWS CLI | v2 |
 | GitHub CLI | latest |
 | AWS Account | with IAM permissions |
 | Docker | 24.x+ (for LocalStack) |
+| Python | 3.x (for `cfn-lint`) |
 
 ---
 
-## ✅ Terraform Checks Before Commit
+## ✅ CloudFormation Checks Before Commit
 
-Run the full Terraform pre-commit validation suite before pushing infrastructure
-changes:
+Validate templates locally before pushing infrastructure changes:
 
 ```bash
-npm run terraform:check
+cd infrastructure
+pip install cfn-lint
+cfn-lint root-stack.yaml
+cfn-lint nested/*.yaml
+aws cloudformation validate-template --template-body file://root-stack.yaml
+for template in nested/*.yaml; do
+  aws cloudformation validate-template --template-body "file://${template}"
+done
 ```
 
-This command executes:
-1. Bash syntax checks for infrastructure helper scripts
-2. `terraform fmt -check -recursive`
-3. `terraform init -backend=false -input=false`
-4. `tflint --init` and `tflint --recursive`
-5. `terraform validate` with required `TF_VAR_*` placeholders
-6. `terraform test`
-
-The same command is enforced in CI by [infra-validate.yml](.github/workflows/infra-validate.yml),
-so local and remote validation stay aligned.
+The same linting is enforced in CI by [infra-validate.yml](.github/workflows/infra-validate.yml).
 
 ---
 
@@ -110,21 +107,11 @@ echo "NEXT_PUBLIC_API_BASE_URL=https://abc123.execute-api.us-east-1.amazonaws.co
 | API Gateway | `localhost:14566` | HTTP API (routes requests to Lambda) |
 | Lambda | `localhost:14566` | Function execution |
 
-### Terraform local testing (optional)
+### Infrastructure local testing (optional)
 
-Use [`tflocal`](https://github.com/localstack/terraform-local) to run Terraform
-against LocalStack — no provider changes needed, it handles endpoint overrides:
-
-```bash
-pip install terraform-local
-cd infrastructure
-tflocal init
-# Test core modules only (Amplify not available in LocalStack Community):
-tflocal apply -var-file=local.tfvars \
-  -target=module.dynamodb \
-  -target=module.lambda \
-  -target=module.api_gateway
-```
+For local integration tests, use `docker compose up` and let the bundled deploy
+service provision LocalStack resources from scripts. CloudFormation deployment
+is used in GitHub Actions for dev/prod environments.
 
 ---
 
@@ -185,7 +172,7 @@ awslocal lambda invoke \
 | `BACKEND_API_URL` | Backend API endpoint (proxied via Next.js `/api` routes) | `http://localhost:14566/restapis/aplocal/dev/_user_request_` (LocalStack REST fallback) |
 | `NEXT_PUBLIC_STAGE` | Deployment stage | `dev` |
 
-### Backend (Lambda environment variables — set by Terraform, no defaults)
+### Backend (Lambda environment variables — set by CloudFormation, no defaults)
 
 | Variable | Description | Required |
 |----------|-------------|---------|
@@ -227,47 +214,11 @@ Lambda Functions
 
 ---
 
-## ☁️ GitHub Actions OIDC Setup
+## ☁️ GitHub Actions AWS Credentials Setup
 
-Before first deploy, set up AWS OIDC trust so GitHub Actions can assume an IAM role without long-lived credentials:
+Before the first deploy, configure repository secrets used by deployment workflows.
 
-### 1. Bootstrap Terraform state (one-time)
-
-```bash
-# Create S3 bucket for TF state
-aws s3api create-bucket \
-  --bucket accommodations-planner-tf-state \
-  --region us-east-1
-
-aws s3api put-bucket-versioning \
-  --bucket accommodations-planner-tf-state \
-  --versioning-configuration Status=Enabled
-
-aws s3api put-bucket-encryption \
-  --bucket accommodations-planner-tf-state \
-  --server-side-encryption-configuration \
-    '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
-
-# Create DynamoDB lock table
-aws dynamodb create-table \
-  --table-name accommodations-planner-tf-lock \
-  --attribute-definitions AttributeName=LockID,AttributeType=S \
-  --key-schema AttributeName=LockID,KeyType=HASH \
-  --billing-mode PAY_PER_REQUEST \
-  --region us-east-1
-```
-
-### 2. First Terraform apply (creates OIDC provider + IAM role)
-
-```bash
-cd infrastructure
-terraform init
-terraform apply -var="environment=dev"
-```
-
-This creates `aws_iam_openid_connect_provider.github` and `aws_iam_role.github_actions`.
-
-### 3. Configure GitHub secrets
+### 1. Configure GitHub secrets
 
 ```bash
 # Set GitHub Actions secrets (repository-level) — required, no fallback
@@ -279,7 +230,7 @@ gh secret set AMPLIFY_GITHUB_TOKEN --body "<your-token>"
 gh secret set DEPLOY_AWS_REGION --body "us-east-1"
 ```
 
-### 4. Create GitHub Environments
+### 2. Create GitHub Environments
 
 ```bash
 # Create environments (prod requires manual approval)
@@ -289,24 +240,50 @@ gh api repos/:owner/:repo/environments/prod --method PUT \
   -F reviewers='[{"type":"User","id":<YOUR_USER_ID>}]'
 ```
 
+### 3. First deployment
+
+Use `Deploy Dev Infra` from GitHub Actions to create/update stacks in the `dev`
+environment.
+
 ---
 
 ## 🔄 Deploying
 
-### Dev (automatic on push to `main`)
+### Dev
 
-Every push to `main` triggers:
-1. `ci.yml` — lint, test, build (backend + frontend)
-2. `deploy-dev.yml` — Terraform apply + Lambda update for `dev` environment
+Automatic deploy:
+1. Push to `master` with infrastructure changes
+2. `.github/workflows/deploy-dev-infra.yml` runs
+3. The workflow calls `.github/workflows/deploy-infra.yml` for the `dev` environment
+
+Manual deploy:
+1. Go to Actions and run `Deploy Dev Infra`
+2. Use checkboxes to select services to deploy:
+  - `deploy_dynamodb`
+  - `deploy_lambda`
+  - `deploy_api_gateway`
+  - `deploy_amplify`
+  - `deploy_iam`
+  - `deploy_cognito`
+3. Optional cleanup controls:
+  - `cleanup_orphaned_resources`
+  - `remove_orphaned_dynamodb` (only relevant when DynamoDB deploy is disabled)
 
 ### Prod (manual `workflow_dispatch`)
 
-1. Go to **Actions → Deploy Prod → Run workflow**
+1. Go to Actions and run `Deploy Prod Infra`
 2. Type `deploy-prod` in the confirmation box
-3. Workflow runs Docker/LocalStack smoke tests first (`/health`, create/list reservations)
-4. Terraform + backend prod deploy runs only if those local Docker smoke tests pass
-5. Requires approval from a `prod` environment reviewer
-4. Runs Terraform apply + Lambda update for `prod` environment
+3. Use checkboxes to select services to deploy:
+  - `deploy_dynamodb`
+  - `deploy_lambda`
+  - `deploy_api_gateway`
+  - `deploy_amplify`
+  - `deploy_iam`
+  - `deploy_cognito`
+4. Optional cleanup controls:
+  - `cleanup_orphaned_resources`
+  - `remove_orphaned_dynamodb` (only relevant when DynamoDB deploy is disabled)
+5. Workflow calls `.github/workflows/deploy-infra.yml` for the `prod` environment
 
 ---
 
@@ -327,25 +304,5 @@ Lambda Functions:
   └── accommodations-planner-{env}-health       (128MB, 10s timeout)
   └── accommodations-planner-{env}-reservations (128MB, 10s timeout)
 
-Amplify App → GitHub repo main branch → Next.js SSG build
+Amplify App → GitHub repo master branch → Next.js SSG build
 ```
-
----
-
-## 🔒 Enabling Remote Terraform State
-
-Uncomment the `backend` block in `infrastructure/backend.tf` after bootstrapping the S3 bucket:
-
-```hcl
-terraform {
-  backend "s3" {
-    bucket         = "accommodations-planner-tf-state"
-    key            = "accommodations-planner/terraform.tfstate"
-    region         = "us-east-1"
-    dynamodb_table = "accommodations-planner-tf-lock"
-    encrypt        = true
-  }
-}
-```
-
-Then run `terraform init -migrate-state`.

@@ -4,6 +4,26 @@
     "reservations": "Prenotazioni",
     "skipToMain": "Vai al contenuto principale"
   },
+  "auth": {
+    "pageTitle": "Accesso Admin",
+    "heading": "Accesso Admin",
+    "emailLabel": "Indirizzo email",
+    "passwordLabel": "Password",
+    "newPasswordRequired": "Imposta una nuova password",
+    "newPasswordDesc": "Il tuo account è stato creato con una password temporanea. Imposta una password permanente per continuare.",
+    "newPasswordLabel": "Nuova password",
+    "confirmPasswordLabel": "Conferma nuova password",
+    "changePassword": "Imposta password",
+    "settingPassword": "Impostazione password in corso…",
+    "passwordMismatch": "Le password non corrispondono.",
+    "passwordRequirements": "La password deve contenere almeno 8 caratteri, incluse maiuscole, minuscole e un numero.",
+    "challengeExpired": "La sessione per impostare la password è scaduta. Accedi di nuovo.",
+    "signIn": "Accedi",
+    "signingIn": "Accesso in corso…",
+    "signOut": "Esci",
+    "checkingSession": "Verifica sessione…",
+    "errorGeneric": "Accesso non riuscito. Controlla le credenziali e riprova."
+  },
   "footer": {
     "allRightsReserved": "Tutti i diritti riservati."
   },

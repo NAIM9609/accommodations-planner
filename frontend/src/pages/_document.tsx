@@ -36,6 +36,7 @@ export default function Document(): JSX.Element {
   return (
     <Html>
       <Head>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         {isDevelopment ? <script dangerouslySetInnerHTML={{ __html: DEV_SW_CLEANUP }} /> : null}
       </Head>
       <body>
