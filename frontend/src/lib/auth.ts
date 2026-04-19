@@ -17,9 +17,11 @@ function sanitizeChallengeAttributes(
 ): Record<string, string> {
   const sanitized = { ...attributes };
 
-  // Cognito rejects immutable verification flags in RespondToAuthChallenge.
+  // Cognito rejects immutable/already-set attributes in RespondToAuthChallenge.
   delete sanitized.email_verified;
   delete sanitized.phone_number_verified;
+  delete sanitized.email;
+  delete sanitized.phone_number;
 
   return sanitized;
 }
