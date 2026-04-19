@@ -12,13 +12,13 @@ on:
         required: false
         type: string
         default: ''
-      skip_cleanup:
-        description: Skip automatic orphaned resource cleanup
+      cleanup_orphaned_resources:
+        description: Run automatic orphaned resource cleanup before deploy
         required: false
         type: boolean
-        default: false
-      force_cleanup_dynamo:
-        description: Also delete orphaned DynamoDB table (DATA LOSS risk)
+        default: true
+      remove_orphaned_dynamodb:
+        description: Also delete orphaned DynamoDB table during cleanup (DATA LOSS risk)
         required: false
         type: boolean
         default: false
@@ -181,7 +181,7 @@ jobs:
 
           echo "overrides=${OVERRIDES}" >> "$GITHUB_OUTPUT"
 
-      - name: Append stack selector overrides
+      - name: Append service toggle overrides
         id: stack_params
         run: |
           set -euo pipefail
@@ -209,12 +209,12 @@ jobs:
           fi
 
       - name: Clean up orphaned resources from failed deploys
-        if: ${{ inputs.skip_cleanup != true }}
+        if: ${{ inputs.cleanup_orphaned_resources == true }}
         run: |
           set -euo pipefail
           export PREFIX="${STACK_NAME}"
           export STACK_NAME
-          export CLEANUP_DYNAMO="${{ inputs.force_cleanup_dynamo }}"
+          export REMOVE_ORPHANED_DYNAMODB="${{ inputs.remove_orphaned_dynamodb }}"
           chmod +x scripts/cleanup-orphaned-resources.sh
           bash scripts/cleanup-orphaned-resources.sh
 
