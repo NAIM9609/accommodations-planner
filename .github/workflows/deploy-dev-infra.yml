@@ -64,7 +64,7 @@ jobs:
     with:
       environment: dev
       # Cleanup runs if enabled (default true)
-      cleanup_orphaned_resources: ${{ github.event.inputs.cleanup_orphaned_resources == 'true' }}
+      cleanup_orphaned_resources: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.cleanup_orphaned_resources == 'true' }}
       # Remove orphaned DynamoDB only if cleanup is enabled, DynamoDB is NOT being deployed, and explicit permission is given
       remove_orphaned_dynamodb: ${{ github.event.inputs.cleanup_orphaned_resources == 'true' && github.event.inputs.deploy_dynamodb != 'true' && github.event.inputs.remove_orphaned_dynamodb == 'true' }}
       # Service toggles: true means deploy, false means skip

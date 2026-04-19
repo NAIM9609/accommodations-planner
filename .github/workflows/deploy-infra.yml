@@ -194,6 +194,20 @@ jobs:
           OVERRIDES="${OVERRIDES} EnableCognito=${{ inputs.enable_cognito }}"
           echo "overrides=${OVERRIDES}" >> "$GITHUB_OUTPUT"
 
+      - name: Preflight deployment flags
+        run: |
+          set -euo pipefail
+          echo "=== Effective Deployment Flags ==="
+          echo "environment=${{ inputs.environment }}"
+          echo "cleanup_orphaned_resources=${{ inputs.cleanup_orphaned_resources }}"
+          echo "remove_orphaned_dynamodb=${{ inputs.remove_orphaned_dynamodb }}"
+          echo "enable_dynamodb=${{ inputs.enable_dynamodb }}"
+          echo "enable_lambda=${{ inputs.enable_lambda }}"
+          echo "enable_api_gateway=${{ inputs.enable_api_gateway }}"
+          echo "enable_amplify=${{ inputs.enable_amplify }}"
+          echo "enable_iam=${{ inputs.enable_iam }}"
+          echo "enable_cognito=${{ inputs.enable_cognito }}"
+
       - name: Clean up failed stack if in ROLLBACK_COMPLETE
         run: |
           set -euo pipefail

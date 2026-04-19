@@ -266,9 +266,17 @@ Conditions:
   IsCustomDomainEnabled: !Equals [!Ref AmplifyCustomDomainEnabled, "true"]
   HasCustomDomainPrefix: !Not [!Equals [!Ref AmplifyCustomDomainPrefix, ""]]
   DeployDynamoDB: !Equals [!Ref EnableDynamoDB, "true"]
-  DeployLambda: !Equals [!Ref EnableLambda, "true"]
-  DeployApiGateway: !Equals [!Ref EnableApiGateway, "true"]
-  DeployAmplify: !Equals [!Ref EnableAmplify, "true"]
+  DeployLambda: !And
+    - !Equals [!Ref EnableLambda, "true"]
+    - !Condition DeployDynamoDB
+  DeployApiGateway: !And
+    - !Equals [!Ref EnableApiGateway, "true"]
+    - !Condition DeployLambda
+    - !Condition DeployCognito
+  DeployAmplify: !And
+    - !Equals [!Ref EnableAmplify, "true"]
+    - !Condition DeployApiGateway
+    - !Condition DeployCognito
   DeployIam: !Equals [!Ref EnableIam, "true"]
   DeployCognito: !Equals [!Ref EnableCognito, "true"]
 
