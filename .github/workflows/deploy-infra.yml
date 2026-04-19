@@ -370,14 +370,13 @@ jobs:
                 appId: $app_id,
                 environmentVariables: (
                   $current
-                  | del(.NEXT_PUBLIC_API_BASE_URL)
-                  | .BACKEND_API_URL = $api_url
+                  | .NEXT_PUBLIC_API_BASE_URL = $api_url
                   | .NEXT_PUBLIC_COGNITO_USER_POOL_ID = $pool_id
                   | .NEXT_PUBLIC_COGNITO_CLIENT_ID = $client_id
                 )
               }')"
 
           echo "Amplify environment variables synced:"
-          echo "  BACKEND_API_URL=$API_URL"
+          echo "  NEXT_PUBLIC_API_BASE_URL=$API_URL"
           echo "  NEXT_PUBLIC_COGNITO_USER_POOL_ID=$USER_POOL_ID"
           echo "  NEXT_PUBLIC_COGNITO_CLIENT_ID=$CLIENT_ID"
