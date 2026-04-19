@@ -62,7 +62,7 @@ jobs:
             exit 0
           fi
           echo "Amplify App ID: $APP_ID"
-          BRANCH="master"
+          BRANCH="${{ github.ref_name }}"
           set +e
           start_output=$(aws amplify start-job --app-id "$APP_ID" --branch-name "$BRANCH" --job-type RELEASE 2>&1)
           start_status=$?
